@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "fieldbook-app",
+    "slug": "fieldbook-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": ["whatsapp", "tg", "telegram"],
+        "NSPhotoLibraryUsageDescription": "Fieldbook uses your photo library so you can choose a profile picture."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "softwareKeyboardLayoutMode": "pan"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Fieldbook uses your photo library so you can choose a profile picture."
+        }
+      ],
+      "expo-notifications"
+    ]
+  }
+}
