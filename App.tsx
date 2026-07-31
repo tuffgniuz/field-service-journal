@@ -10,7 +10,7 @@ import { themeFor } from './src/theme/theme';
 import { OnboardingScreen } from './src/screens/onboarding/OnboardingScreen';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { Toast } from './src/components/Toast';
-import { isReportReminderNotification } from './src/utils/notifications';
+import { isLastDayOfMonthReminderNotification, isReportReminderNotification } from './src/utils/notifications';
 import type { RootStackParamList } from './src/navigation/types';
 
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
@@ -28,12 +28,14 @@ function Root() {
 
   useEffect(() => {
     if (Platform.OS === 'web') return;
+    const isReportRelated = (data: Record<string, unknown> | undefined) =>
+      isReportReminderNotification(data) || isLastDayOfMonthReminderNotification(data);
     const last = Notifications.getLastNotificationResponse();
-    if (last && isReportReminderNotification(last.notification.request.content.data)) {
+    if (last && isReportRelated(last.notification.request.content.data)) {
       navigateToReportTab();
     }
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      if (isReportReminderNotification(response.notification.request.content.data)) {
+      if (isReportRelated(response.notification.request.content.data)) {
         navigateToReportTab();
       }
     });

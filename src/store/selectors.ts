@@ -47,7 +47,7 @@ export function serviceYearHoursFor(state: AppState, label: number, nowMs: numbe
   return Math.round(sum * 100) / 100;
 }
 
-const STUDY_STATUSES: ContactStatus[] = ['bible_study', 'family_study'];
+export const STUDY_STATUSES: ContactStatus[] = ['bible_study'];
 
 export function studiesForMonth(state: AppState, monthKey: string): number {
   return state.contacts.filter(
@@ -67,6 +67,32 @@ export function sortedContacts(contacts: Contact[]): Contact[] {
     const db = lb ? daysSince(lb.date) : Infinity;
     return db - da;
   });
+}
+
+/** Contacts eligible to "log a Bible study" against — bible_study status — most recently visited first. */
+export function studyContacts(contacts: Contact[]): Contact[] {
+  return sortedContacts(contacts.filter((c) => STUDY_STATUSES.includes(c.status)));
+}
+
+export interface RecentVisit {
+  contactId: string;
+  contactName: string;
+  status: ContactStatus;
+  visitId: string;
+  date: string;
+  covered: string;
+}
+
+/** The most recent visits across every contact, newest first. */
+export function recentVisits(contacts: Contact[], limit: number): RecentVisit[] {
+  const all: RecentVisit[] = [];
+  for (const c of contacts) {
+    for (const v of c.visits) {
+      all.push({ contactId: c.id, contactName: c.name, status: c.status, visitId: v.id, date: v.date, covered: v.covered });
+    }
+  }
+  all.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+  return all.slice(0, limit);
 }
 
 export interface ChartDay {

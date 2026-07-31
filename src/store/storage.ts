@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { AppState } from './types';
 
-const STORAGE_KEY = 'fieldbook.state.v1';
+const STORAGE_KEY = 'field-service-journal.state.v1';
 
 export async function loadState(): Promise<Partial<AppState> | null> {
   try {

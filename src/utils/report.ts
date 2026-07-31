@@ -5,8 +5,8 @@ import { currentMonthHours, studiesForMonth } from '../store/selectors';
 import { currentMonthKey, monthLabel } from './dates';
 import { fmtHours } from './format';
 
-export function isPioneerRole(state: AppState): boolean {
-  return state.role !== 'publisher';
+export function isPioneerRole(state: RuntimeState): boolean {
+  return state.effectiveRole !== 'publisher';
 }
 
 export function recipientFirstName(state: AppState): string {
@@ -23,16 +23,26 @@ export function buildReportText(state: RuntimeState): string {
   const monthShort = new Date().toLocaleDateString(locale, { month: 'long' });
   const name = recipientFirstName(state) || i18next.t('report.recipientFallbackName');
 
+  const hasStudies = studies > 0;
+
   if (state.reportTone === 'formal') {
-    return isPioneer
-      ? i18next.t('report.formalPioneer', { month: monthName, hours: fmtHours(hours), studies })
-      : i18next.t('report.formalPublisher', {
-          month: monthName,
-          shared: state.participated ? i18next.t('common.yes') : i18next.t('common.no'),
-          studies,
-        });
+    if (isPioneer) {
+      return hasStudies
+        ? i18next.t('report.formalPioneer', { month: monthName, hours: fmtHours(hours), studies })
+        : i18next.t('report.formalPioneerNoStudies', { month: monthName, hours: fmtHours(hours) });
+    }
+    const shared = state.participated ? i18next.t('common.yes') : i18next.t('common.no');
+    return hasStudies
+      ? i18next.t('report.formalPublisher', { month: monthName, shared, studies })
+      : i18next.t('report.formalPublisherNoStudies', { month: monthName, shared });
   }
-  return isPioneer
-    ? i18next.t('report.conversationalPioneer', { name, month: monthShort, hours: fmtHours(hours), count: studies })
-    : i18next.t('report.conversationalPublisher', { name, count: studies });
+
+  if (isPioneer) {
+    return hasStudies
+      ? i18next.t('report.conversationalPioneer', { name, month: monthShort, hours: fmtHours(hours), count: studies })
+      : i18next.t('report.conversationalPioneerNoStudies', { name, month: monthShort, hours: fmtHours(hours) });
+  }
+  return hasStudies
+    ? i18next.t('report.conversationalPublisher', { name, count: studies })
+    : i18next.t('report.conversationalPublisherNoStudies', { name });
 }

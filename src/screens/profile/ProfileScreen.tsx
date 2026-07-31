@@ -7,6 +7,7 @@ import { themeFor } from '../../theme/theme';
 import { KeyboardAvoidingScrollView } from '../../components/KeyboardAvoidingScrollView';
 import { CameraIcon, SettingsIcon } from '../../components/icons';
 import { MonthHeatmap } from './MonthHeatmap';
+import { AuxPioneerScheduleSheet } from './AuxPioneerScheduleSheet';
 import { useRoleMeta } from '../../i18n/labels';
 import { INTL_LOCALE_TAGS } from '../../i18n/language';
 import { buildChartMonth, monthHoursFor } from '../../store/selectors';
@@ -23,6 +24,7 @@ export function ProfileScreen({ navigation }: { navigation: TabScreenNavProp<'Pr
   const insets = useSafeAreaInsets();
   const locale = INTL_LOCALE_TAGS[state.language];
   const [monthOffset, setMonthOffset] = useState(0);
+  const [auxSheetVisible, setAuxSheetVisible] = useState(false);
   const chart = useMemo(() => buildChartMonth(state, monthOffset, locale), [state, monthOffset, locale]);
   const monthHours = useMemo(() => monthHoursFor(state, chart.monthKey), [state, chart.monthKey]);
   const goal = useMemo(() => pioneerGoalFor(state), [state]);
@@ -52,6 +54,7 @@ export function ProfileScreen({ navigation }: { navigation: TabScreenNavProp<'Pr
   };
 
   return (
+    <>
     <KeyboardAvoidingScrollView
       style={{ backgroundColor: theme.bg }}
       contentContainerStyle={[styles.container, { paddingTop: insets.top + 12 }]}
@@ -61,7 +64,7 @@ export function ProfileScreen({ navigation }: { navigation: TabScreenNavProp<'Pr
           <Text style={[styles.title, { color: theme.text }]}>
             {state.name.trim() ? t('profile.greeting', { name: state.name.trim() }) : t('profile.titleFallback')}
           </Text>
-          <Text style={[styles.roleSubtitle, { color: theme.secondaryText }]}>{roleMeta[state.role]}</Text>
+          <Text style={[styles.roleSubtitle, { color: theme.secondaryText }]}>{roleMeta[state.effectiveRole]}</Text>
         </View>
         <Pressable
           onPress={() => navigation.navigate('Settings')}
@@ -73,60 +76,87 @@ export function ProfileScreen({ navigation }: { navigation: TabScreenNavProp<'Pr
         </Pressable>
       </View>
 
-      <View style={styles.avatarRow}>
-        <Pressable
-          onPress={onAvatarPress}
-          accessibilityLabel={state.avatarUri ? t('profile.changeProfilePhotoLabel') : t('profile.addProfilePhoto')}
-          style={[
-            styles.avatar,
-            state.avatarUri
-              ? { borderColor: theme.border }
-              : { borderColor: theme.border, borderStyle: 'dashed', backgroundColor: theme.card },
-          ]}
-        >
-          {state.avatarUri ? (
-            <Image
-              source={{ uri: state.avatarUri }}
-              style={styles.avatarImage}
-              onError={() => actions.setAvatarUri('')}
-            />
-          ) : (
-            <CameraIcon color={theme.secondaryText} size={24} />
-          )}
-        </Pressable>
-      </View>
+      <View style={[styles.card, { borderColor: theme.border }]}>
+        <View style={styles.cardHeaderRow}>
+          <Pressable
+            onPress={onAvatarPress}
+            accessibilityLabel={state.avatarUri ? t('profile.changeProfilePhotoLabel') : t('profile.addProfilePhoto')}
+            style={[
+              styles.avatar,
+              state.avatarUri
+                ? { borderColor: theme.border }
+                : { borderColor: theme.border, borderStyle: 'dashed', backgroundColor: theme.card },
+            ]}
+          >
+            {state.avatarUri ? (
+              <Image
+                source={{ uri: state.avatarUri }}
+                style={styles.avatarImage}
+                onError={() => actions.setAvatarUri('')}
+              />
+            ) : (
+              <CameraIcon color={theme.secondaryText} size={20} />
+            )}
+          </Pressable>
 
-      {goal ? (
-        <View style={[styles.card, { borderColor: theme.border }]}>
-          <Text style={[styles.goalTitle, { color: theme.text }]}>
-            {t(goal.kind === 'monthly' ? 'profile.monthlyGoalTitle' : 'profile.yearlyGoalTitle')}
-          </Text>
-          <View style={[styles.progressTrack, { backgroundColor: theme.border }]}>
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  backgroundColor: theme.accent,
-                  width: `${Math.min(100, (goal.completedHours / goal.targetHours) * 100)}%`,
-                },
-              ]}
-            />
-          </View>
-          <Text style={[styles.goalProgress, { color: theme.secondaryText }]}>
-            {t('profile.goalProgress', { completed: fmtHours(goal.completedHours), target: goal.targetHours })}
-          </Text>
-          <Text style={[styles.goalStatus, { color: theme.text }]}>
-            {goal.remainingHours > 0
-              ? t('profile.hoursToGo', { count: goal.remainingHours })
-              : t(goal.kind === 'monthly' ? 'profile.goalReachedMonthly' : 'profile.goalReachedYearly')}
-          </Text>
-          {goal.kind === 'yearly' ? (
-            <Text style={[styles.goalCaption, { color: theme.secondaryText }]}>
-              {t('profile.serviceYearCaption', { year: goal.serviceYearLabel })}
+          {goal || state.role === 'publisher' ? (
+            <Text style={[styles.cardHeaderTitle, { color: theme.text }]}>
+              {goal
+                ? t(goal.kind === 'monthly' ? 'profile.monthlyGoalTitle' : 'profile.yearlyGoalTitle')
+                : t('profile.auxPioneerToggleTitle')}
             </Text>
           ) : null}
+
+          {state.role === 'publisher' ? (
+            <Pressable
+              onPress={() => setAuxSheetVisible(true)}
+              hitSlop={8}
+              accessibilityLabel={t('profile.manageAuxPioneerAccessibility')}
+              style={styles.chevronBtn}
+            >
+              <Text style={[styles.chevron, { color: theme.secondaryText }]}>›</Text>
+            </Pressable>
+          ) : null}
         </View>
-      ) : null}
+
+        {goal ? (
+          <>
+            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+            <View style={[styles.progressTrack, { backgroundColor: theme.border }]}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    backgroundColor: theme.accent,
+                    width: `${Math.min(100, (goal.completedHours / goal.targetHours) * 100)}%`,
+                  },
+                ]}
+              />
+            </View>
+            <Text style={[styles.goalSummary, { color: theme.text }]}>
+              {t('profile.goalSummary', {
+                completed: fmtHours(goal.completedHours),
+                target: goal.targetHours,
+                status:
+                  goal.remainingHours > 0
+                    ? t('profile.hoursToGoShort', { count: goal.remainingHours })
+                    : t('profile.goalReachedShort'),
+              })}
+            </Text>
+            {goal.kind === 'yearly' ? (
+              <Text style={[styles.goalCaption, { color: theme.secondaryText }]}>
+                {t('profile.serviceYearCaption', { year: goal.serviceYearLabel })}
+              </Text>
+            ) : (
+              <Text style={[styles.goalCaption, { color: theme.secondaryText }]}>
+                {state.auxPioneerSchedule.ongoing
+                  ? t('profile.auxPioneerOngoing')
+                  : t('profile.auxPioneerThisMonthCaption')}
+              </Text>
+            )}
+          </>
+        ) : null}
+      </View>
 
       <View style={[styles.card, { borderColor: theme.border }]}>
         <View style={styles.monthNavRow}>
@@ -154,6 +184,18 @@ export function ProfileScreen({ navigation }: { navigation: TabScreenNavProp<'Pr
         <MonthHeatmap theme={theme} chart={chart} locale={locale} />
       </View>
     </KeyboardAvoidingScrollView>
+
+    <AuxPioneerScheduleSheet
+      visible={auxSheetVisible}
+      schedule={state.auxPioneerSchedule}
+      onClose={() => setAuxSheetVisible(false)}
+      onSetOngoing={actions.setAuxPioneerOngoing}
+      onToggleMonth={actions.toggleAuxPioneerMonth}
+      onStop={actions.stopAuxPioneering}
+      theme={theme}
+      locale={locale}
+    />
+    </>
   );
 }
 
@@ -176,11 +218,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarRow: { alignItems: 'center', marginBottom: 24 },
   avatar: {
-    width: 92,
-    height: 92,
-    borderRadius: 46,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
@@ -188,12 +229,15 @@ const styles = StyleSheet.create({
   },
   avatarImage: { width: '100%', height: '100%' },
   card: { borderWidth: 1, borderRadius: 12, padding: 16, marginBottom: 28 },
-  goalTitle: { fontSize: 13, fontWeight: '600', marginBottom: 12 },
+  cardHeaderRow: { flexDirection: 'row', alignItems: 'center' },
+  cardHeaderTitle: { flex: 1, marginLeft: 14, fontSize: 14.5, fontWeight: '600' },
+  chevronBtn: { paddingHorizontal: 4, paddingVertical: 8 },
+  chevron: { fontSize: 20 },
+  divider: { height: StyleSheet.hairlineWidth, marginVertical: 14 },
   progressTrack: { height: 8, borderRadius: 4, overflow: 'hidden', marginBottom: 10 },
   progressFill: { height: '100%', borderRadius: 4 },
-  goalProgress: { fontSize: 13, marginBottom: 2 },
-  goalStatus: { fontSize: 15, fontWeight: '700' },
-  goalCaption: { fontSize: 12, marginTop: 8 },
+  goalSummary: { fontSize: 13.5, fontWeight: '600' },
+  goalCaption: { fontSize: 12, marginTop: 4 },
   monthNavRow: {
     flexDirection: 'row',
     alignItems: 'center',

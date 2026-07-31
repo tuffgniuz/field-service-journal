@@ -16,6 +16,5 @@ export function useStatusMeta(): Record<ContactStatus, string> {
   return {
     return_visit: t('status.returnVisit'),
     bible_study: t('status.bibleStudy'),
-    family_study: t('status.familyStudy'),
   };
 }

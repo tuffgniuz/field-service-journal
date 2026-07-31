@@ -4,7 +4,7 @@ import type { AppState } from '../store/types';
 
 export async function exportAppData(state: AppState, dialogTitle: string): Promise<boolean> {
   const json = JSON.stringify(state, null, 2);
-  const file = new File(Paths.cache, `fieldbook-export-${Date.now()}.json`);
+  const file = new File(Paths.cache, `field-service-journal-export-${Date.now()}.json`);
   try {
     if (file.exists) file.delete();
     file.create();

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -39,11 +39,30 @@ export function ReportScreen({ navigation }: { navigation: TabScreenNavProp<'Rep
   const [translatedToName, setTranslatedToName] = useState<string | null>(null);
   const [translating, setTranslating] = useState(false);
   const [languagePickerOpen, setLanguagePickerOpen] = useState(false);
+  const lastGeneratedRef = useRef(editedText);
+
+  // Bottom tabs stay mounted once visited, so a language change made from the
+  // Profile/Settings tab wouldn't otherwise reach an already-open Report tab.
+  // Only regenerate if the user hasn't diverged from the last auto-generated
+  // text (typed their own edit, or used the one-off Translate feature) —
+  // otherwise a language switch would silently clobber their changes.
+  useEffect(() => {
+    const regenerated = buildReportText(state);
+    if (editedText === lastGeneratedRef.current) {
+      setEditedText(regenerated);
+      setSourceLanguageCode(state.language);
+      setTranslatedToName(null);
+    }
+    lastGeneratedRef.current = regenerated;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.language]);
 
   const onChangeTone = (tone: ReportTone) => {
     if (tone === 'formal') actions.setToneFormal();
     else actions.setToneConversational();
-    setEditedText(buildReportText({ ...state, reportTone: tone }));
+    const regenerated = buildReportText({ ...state, reportTone: tone });
+    setEditedText(regenerated);
+    lastGeneratedRef.current = regenerated;
     setSourceLanguageCode(state.language);
     setTranslatedToName(null);
   };
@@ -81,6 +100,7 @@ export function ReportScreen({ navigation }: { navigation: TabScreenNavProp<'Rep
   };
 
   return (
+    <>
     <ScrollView
       style={{ backgroundColor: theme.bg }}
       contentContainerStyle={[styles.container, { paddingTop: insets.top + 12 }]}
@@ -176,14 +196,15 @@ export function ReportScreen({ navigation }: { navigation: TabScreenNavProp<'Rep
           </Pressable>
         ))}
       </View>
-
-      <TranslateLanguageSheet
-        visible={languagePickerOpen}
-        onClose={() => setLanguagePickerOpen(false)}
-        onSelect={onTranslate}
-        theme={theme}
-      />
     </ScrollView>
+
+    <TranslateLanguageSheet
+      visible={languagePickerOpen}
+      onClose={() => setLanguagePickerOpen(false)}
+      onSelect={onTranslate}
+      theme={theme}
+    />
+    </>
   );
 }
 

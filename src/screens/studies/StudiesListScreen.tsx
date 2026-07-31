@@ -8,6 +8,7 @@ import { useStatusMeta } from '../../i18n/labels';
 import { lastVisitOf, sortedContacts } from '../../store/selectors';
 import { daysSince, formatShortDate } from '../../utils/dates';
 import { statusColor } from '../../utils/statusColor';
+import { initialsFor } from '../../utils/initials';
 import { INTL_LOCALE_TAGS } from '../../i18n/language';
 import type { TabScreenNavProp } from '../../navigation/types';
 
@@ -46,27 +47,33 @@ export function StudiesListScreen({ navigation }: { navigation: TabScreenNavProp
           contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 100 }}
           renderItem={({ item: c }) => {
             const lv = lastVisitOf(c);
-            const dotColor = statusColor(theme, c.status);
+            const color = statusColor(theme, c.status);
             return (
               <Pressable
                 onPress={() => navigation.navigate('ContactDetail', { contactId: c.id })}
-                style={[styles.row, { borderBottomColor: theme.border }]}
+                style={[styles.card, { backgroundColor: theme.card }]}
               >
-                <View style={styles.rowTop}>
-                  <View style={[styles.dot, { backgroundColor: dotColor }]} />
-                  <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>
-                    {c.name}
-                  </Text>
-                  <Text style={[styles.statusLabel, { color: dotColor }]}>{statusMeta[c.status]}</Text>
+                <View style={[styles.avatar, { borderColor: color }]}>
+                  <Text style={[styles.avatarText, { color }]}>{initialsFor(c.name)}</Text>
                 </View>
-                <Text style={[styles.since, { color: theme.secondaryText }]}>
-                  {lv
-                    ? t('studies.daysSinceLastVisit', { count: daysSince(lv.date), date: formatShortDate(lv.date, locale) })
-                    : t('studies.noVisitsYet')}
-                </Text>
-                <Text style={[styles.snippet, { color: theme.text }]} numberOfLines={2}>
-                  {lv ? lv.standout : t('studies.addVisitToStart')}
-                </Text>
+                <View style={styles.content}>
+                  <View style={styles.nameRow}>
+                    <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>
+                      {c.name}
+                    </Text>
+                    <Text style={[styles.statusLabel, { color }]} numberOfLines={1}>
+                      {statusMeta[c.status]}
+                    </Text>
+                  </View>
+                  <Text style={[styles.since, { color: theme.secondaryText }]}>
+                    {lv
+                      ? t('studies.daysSinceLastVisit', { count: daysSince(lv.date), date: formatShortDate(lv.date, locale) })
+                      : t('studies.noVisitsYet')}
+                  </Text>
+                  <Text style={[styles.snippet, { color: theme.text }]} numberOfLines={2}>
+                    {lv ? lv.covered : t('studies.addVisitToStart')}
+                  </Text>
+                </View>
               </Pressable>
             );
           }}
@@ -97,11 +104,29 @@ const styles = StyleSheet.create({
   empty: { padding: 40, alignItems: 'center' },
   emptyText: { fontSize: 14, marginBottom: 14 },
   emptyAction: { fontWeight: '600', fontSize: 14 },
-  row: { paddingVertical: 16, borderBottomWidth: 1, gap: 6 },
-  rowTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
+  card: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 10,
+    borderRadius: 14,
+  },
+  avatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  avatarText: { fontSize: 13, fontWeight: '700' },
+  content: { flex: 1 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 2 },
   name: { fontSize: 15.5, fontWeight: '600', flex: 1 },
-  statusLabel: { fontSize: 12, fontWeight: '600' },
-  since: { fontSize: 12.5, paddingLeft: 18 },
-  snippet: { fontSize: 13, paddingLeft: 18, lineHeight: 18 },
+  statusLabel: { fontSize: 12, fontWeight: '600', flexShrink: 0 },
+  since: { fontSize: 12.5, marginBottom: 3 },
+  snippet: { fontSize: 13, lineHeight: 18 },
 });

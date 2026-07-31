@@ -5,6 +5,7 @@ export function defaultState(): AppState {
     name: '',
     avatarUri: '',
     role: 'publisher',
+    auxPioneerSchedule: { ongoing: false, months: [] },
     themePreference: 'system',
     languagePreference: 'system',
     reportTone: 'formal',

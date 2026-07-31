@@ -4,23 +4,26 @@ import * as Localization from 'expo-localization';
 import i18next from '../i18n';
 import type {
   AppState,
+  BaseRole,
   Contact,
   ContactStatus,
   LanguagePreference,
   ReportTone,
   RuntimeState,
-  Role,
   ThemePreference,
   Visit,
 } from './types';
 import { defaultState } from './defaults';
 import { loadState, saveState } from './storage';
 import { currentMonthKey, currentServiceYearLabel, todayKey } from '../utils/dates';
+import { resolveEffectiveRole } from '../utils/auxPioneer';
 import { pickSupportedLanguage } from '../i18n/language';
 import {
+  cancelLastDayOfMonthReminder,
   cancelMonthlyReportReminder,
   configureNotificationHandler,
   requestReportReminderPermissionAsync,
+  scheduleLastDayOfMonthReminder,
   scheduleMonthlyReportReminder,
   type ReminderContent,
 } from '../utils/notifications';
@@ -33,11 +36,17 @@ function reminderContent(): ReminderContent {
   };
 }
 
+function lastDayReminderContent(): ReminderContent {
+  return {
+    channelName: i18next.t('notifications.channelName'),
+    title: i18next.t('notifications.lastDayReminderTitle'),
+    body: i18next.t('notifications.lastDayReminderBody'),
+  };
+}
+
 interface VisitDraft {
   date: string;
   covered: string;
-  standout: string;
-  reminderDays?: number | null;
 }
 
 interface ContactDraft {
@@ -50,7 +59,13 @@ interface ContactDraft {
 interface AppActions {
   setName: (name: string) => void;
   setAvatarUri: (uri: string) => void;
-  setRole: (r: Role) => void;
+  setRole: (r: BaseRole) => void;
+  /** Whether auxiliary pioneering is indefinite ('ongoing') vs. limited to `auxPioneerSchedule.months`. No-op unless `role` is 'publisher'. */
+  setAuxPioneerOngoing: (ongoing: boolean) => void;
+  /** Toggles a single "YYYY-MM" month on/off the auxiliary-pioneer schedule. */
+  toggleAuxPioneerMonth: (monthKey: string) => void;
+  /** Clears the auxiliary-pioneer schedule entirely (both `ongoing` and any picked months). */
+  stopAuxPioneering: () => void;
   toggleDark: () => void;
   setLight: () => void;
   setDark: () => void;
@@ -67,9 +82,10 @@ interface AppActions {
   /** Tags the hours to the current service year, so they stop applying once a new one begins. */
   setServiceYearStartingHours: (hours: number) => void;
   addContact: (draft: ContactDraft) => string;
-  setContactNotes: (contactId: string, notes: string) => void;
+  setContactName: (contactId: string, name: string) => void;
   cycleContactStatus: (contactId: string) => void;
   saveVisit: (contactId: string, visit: VisitDraft, editingVisitId?: string | null) => void;
+  deleteVisit: (contactId: string, visitId: string) => void;
   addHours: (dateKey: string, deltaHours: number) => void;
   startTimer: () => void;
   stopTimer: () => void;
@@ -128,6 +144,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (persisted.name === undefined) {
           merged.onboardingDone = false;
         }
+        // Migration: 'aux_pioneer' used to be a permanent, directly-selectable
+        // role. It's now a schedule layered on top of 'publisher' (see
+        // `AuxPioneerSchedule`), so a legacy persisted role of 'aux_pioneer'
+        // is remapped to 'publisher' + an 'ongoing' schedule, preserving the
+        // same effective behavior for anyone who had it set.
+        if ((persisted.role as string) === 'aux_pioneer') {
+          merged.role = 'publisher';
+          merged.auxPioneerSchedule = { ongoing: true, months: merged.auxPioneerSchedule.months };
+        }
+        // Migration: the 'family_study' contact status was removed. Fold any
+        // existing contacts marked with it into 'bible_study' — they still
+        // count toward the monthly studies total either way.
+        if (merged.contacts.some((c) => (c.status as string) === 'family_study')) {
+          merged.contacts = merged.contacts.map((c) =>
+            (c.status as string) === 'family_study' ? { ...c, status: 'bible_study' } : c
+          );
+        }
         setState(merged);
       }
       // Re-arming the OS-level schedule (in case it was cleared by a reinstall
@@ -157,6 +190,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setName: (name) => setState((s) => ({ ...s, name })),
       setAvatarUri: (uri) => setState((s) => ({ ...s, avatarUri: uri })),
       setRole: (r) => setState((s) => ({ ...s, role: r })),
+      setAuxPioneerOngoing: (ongoing) =>
+        setState((s) => ({ ...s, auxPioneerSchedule: { ...s.auxPioneerSchedule, ongoing } })),
+      toggleAuxPioneerMonth: (monthKey) =>
+        setState((s) => {
+          const months = s.auxPioneerSchedule.months.includes(monthKey)
+            ? s.auxPioneerSchedule.months.filter((m) => m !== monthKey)
+            : [...s.auxPioneerSchedule.months, monthKey];
+          return { ...s, auxPioneerSchedule: { ...s.auxPioneerSchedule, months } };
+        }),
+      stopAuxPioneering: () => setState((s) => ({ ...s, auxPioneerSchedule: { ongoing: false, months: [] } })),
       toggleDark: () =>
         setState((s) => {
           const currentlyDark =
@@ -199,7 +242,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               id,
               name: draft.name.trim() || i18next.t('addContact.unnamedFallback'),
               status: draft.status,
-              notes: '',
               publication: draft.publication?.trim() || '',
               address: draft.address?.trim() || '',
               visits: [],
@@ -209,15 +251,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return id;
       },
 
-      setContactNotes: (contactId, notes) =>
+      setContactName: (contactId, name) =>
         setState((s) => ({
           ...s,
-          contacts: s.contacts.map((c) => (c.id === contactId ? { ...c, notes } : c)),
+          contacts: s.contacts.map((c) => (c.id === contactId ? { ...c, name } : c)),
         })),
 
       cycleContactStatus: (contactId) =>
         setState((s) => {
-          const order: ContactStatus[] = ['return_visit', 'bible_study', 'family_study'];
+          const order: ContactStatus[] = ['return_visit', 'bible_study'];
           return {
             ...s,
             contacts: s.contacts.map((c) => {
@@ -238,8 +280,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               id: editingVisitId || 'v' + Date.now(),
               date: visit.date,
               covered: visit.covered,
-              standout: visit.standout,
-              reminderDays: visit.reminderDays ?? null,
             };
             const visits = editingVisitId
               ? c.visits.map((v) => (v.id === editingVisitId ? entry : v))
@@ -248,6 +288,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           }),
         }));
       },
+
+      deleteVisit: (contactId, visitId) =>
+        setState((s) => ({
+          ...s,
+          contacts: s.contacts.map((c) =>
+            c.id === contactId ? { ...c, visits: c.visits.filter((v) => v.id !== visitId) } : c
+          ),
+        })),
 
       addHours: (dateKey, deltaHours) =>
         setState((s) => {
@@ -282,6 +330,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           if (!granted) return false;
           try {
             await scheduleMonthlyReportReminder(reminderContent());
+            await scheduleLastDayOfMonthReminder(lastDayReminderContent());
           } catch {
             return false;
           }
@@ -289,6 +338,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           return true;
         }
         await cancelMonthlyReportReminder();
+        await cancelLastDayOfMonthReminder();
         setState((s) => ({ ...s, reportReminderEnabled: false }));
         return true;
       },
@@ -299,6 +349,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       resetAllData: () => {
         cancelMonthlyReportReminder().catch(() => {});
+        cancelLastDayOfMonthReminder().catch(() => {});
         setState(defaultState());
       },
     }),
@@ -308,9 +359,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const isDark = state.themePreference === 'system' ? systemScheme === 'dark' : state.themePreference === 'dark';
   const language =
     state.languagePreference === 'system' ? pickSupportedLanguage(systemLocales) : state.languagePreference;
+  const effectiveRole = resolveEffectiveRole(state.role, state.auxPioneerSchedule, currentMonthKey());
   const runtimeState: RuntimeState = useMemo(
-    () => ({ ...state, darkMode: isDark, language }),
-    [state, isDark, language]
+    () => ({ ...state, darkMode: isDark, language, effectiveRole }),
+    [state, isDark, language, effectiveRole]
   );
   const value = useMemo(() => ({ state: runtimeState, ready, actions }), [runtimeState, ready, actions]);
 
@@ -324,8 +376,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (cancelled) return;
       // A scheduled notification's text is baked in at schedule time, so a live
       // language switch needs to re-schedule it to pick up the new translation.
+      // This also re-arms the last-day-of-month reminder's one-off DATE trigger
+      // for the current month's actual last day, since — unlike the 1st-of-month
+      // reminder — the OS can't repeat it on a fixed day number on its own.
       if (state.reportReminderEnabled) {
         scheduleMonthlyReportReminder(reminderContent()).catch(() => {});
+        scheduleLastDayOfMonthReminder(lastDayReminderContent()).catch(() => {});
       }
     })();
     return () => {

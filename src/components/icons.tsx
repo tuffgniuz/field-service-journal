@@ -76,6 +76,14 @@ export function SettingsIcon({ color, size = 20 }: { color: string; size?: numbe
   );
 }
 
+export function EditIcon({ color, size = 20 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" {...common} stroke={color}>
+      <Path d="M17 3l4 4L9 19l-4.5 1.5L6 16z" />
+    </Svg>
+  );
+}
+
 export function CameraIcon({ color, size = 20 }: { color: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" {...common} stroke={color}>

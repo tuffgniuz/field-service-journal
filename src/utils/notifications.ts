@@ -3,6 +3,7 @@ import * as Notifications from 'expo-notifications';
 
 const CHANNEL_ID = 'report-reminders';
 const REMINDER_ID = 'monthly-report-reminder';
+const LAST_DAY_REMINDER_ID = 'last-day-of-month-reminder';
 
 let handlerConfigured = false;
 
@@ -72,4 +73,57 @@ export async function cancelMonthlyReportReminder(): Promise<void> {
 
 export function isReportReminderNotification(data: Record<string, unknown> | undefined): boolean {
   return !!data && data.type === 'monthly-report-reminder';
+}
+
+/**
+ * 6am on the last day of the given month. Passing `new Date(year, month0 + 1, 0)`
+ * (day 0 of next month) is the standard JS Date trick for "last day of this
+ * month" — it also correctly rolls the year over when month0 is 11 (December).
+ */
+function lastDayOfMonthAt6am(year: number, month0: number): Date {
+  return new Date(year, month0 + 1, 0, 6, 0, 0, 0);
+}
+
+/** The next upcoming last-day-of-month-at-6am instant — this month's if it hasn't passed yet, otherwise next month's. */
+export function nextLastDayOfMonthReminderDate(nowMs: number = Date.now()): Date {
+  const now = new Date(nowMs);
+  const thisMonth = lastDayOfMonthAt6am(now.getFullYear(), now.getMonth());
+  if (thisMonth.getTime() > nowMs) return thisMonth;
+  return lastDayOfMonthAt6am(now.getFullYear(), now.getMonth() + 1);
+}
+
+/**
+ * (Re)schedules a one-off reminder for 6am on the last day of the current
+ * month. Unlike the 1st-of-month reminder, the last day isn't a fixed day
+ * number the OS can repeat on its own (28–31 depending on the month), so this
+ * schedules a single DATE trigger for the next occurrence rather than a
+ * recurring one — callers re-invoke this on every app open (see AppContext's
+ * language-sync effect) so it keeps rolling forward month to month. Idempotent.
+ */
+export async function scheduleLastDayOfMonthReminder(content: ReminderContent): Promise<void> {
+  if (Platform.OS === 'web') return;
+  await ensureAndroidChannelAsync(content.channelName);
+  await Notifications.cancelScheduledNotificationAsync(LAST_DAY_REMINDER_ID).catch(() => {});
+  await Notifications.scheduleNotificationAsync({
+    identifier: LAST_DAY_REMINDER_ID,
+    content: {
+      title: content.title,
+      body: content.body,
+      data: { type: 'last-day-of-month-reminder' },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: nextLastDayOfMonthReminderDate(),
+      channelId: CHANNEL_ID,
+    },
+  });
+}
+
+export async function cancelLastDayOfMonthReminder(): Promise<void> {
+  if (Platform.OS === 'web') return;
+  await Notifications.cancelScheduledNotificationAsync(LAST_DAY_REMINDER_ID).catch(() => {});
+}
+
+export function isLastDayOfMonthReminderNotification(data: Record<string, unknown> | undefined): boolean {
+  return !!data && data.type === 'last-day-of-month-reminder';
 }

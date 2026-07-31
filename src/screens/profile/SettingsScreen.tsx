@@ -11,11 +11,11 @@ import { SegmentedControl } from '../../components/SegmentedControl';
 import { useRoleMeta } from '../../i18n/labels';
 import { LANGUAGE_NATIVE_NAMES } from '../../i18n/language';
 import { currentServiceYearLabel } from '../../utils/dates';
-import { type LanguagePreference, type Role, type ThemePreference } from '../../store/types';
+import { type BaseRole, type LanguagePreference, type ThemePreference } from '../../store/types';
 import { exportAppData } from '../../utils/exportData';
 import type { RootNavProp } from '../../navigation/types';
 
-const ROLE_ORDER: Role[] = ['publisher', 'aux_pioneer', 'regular_pioneer', 'special_pioneer'];
+const ROLE_ORDER: BaseRole[] = ['publisher', 'regular_pioneer', 'special_pioneer'];
 const LANGUAGE_ORDER: LanguagePreference[] = ['system', 'en', 'nl', 'id'];
 
 export function SettingsScreen({ navigation }: { navigation: RootNavProp }) {

@@ -18,6 +18,12 @@ export function currentMonthKey(): string {
   return monthKeyOf(new Date());
 }
 
+/** Parses a "YYYY-MM" month key back to a Date (the 1st of that month), local time. */
+export function parseMonthKey(key: string): Date {
+  const [y, m] = key.split('-').map(Number);
+  return new Date(y, m - 1, 1);
+}
+
 /** Returns the Date for the 1st of the month `offset` months from the current month (0 = this month). */
 export function monthByOffset(offset: number): Date {
   const now = new Date();
@@ -34,6 +40,13 @@ export function monthLabel(d: Date, locale: string = 'en-US'): string {
 
 export function monthShortLabel(d: Date, locale: string = 'en-US'): string {
   return d.toLocaleDateString(locale, { month: 'short', year: 'numeric' });
+}
+
+/** Locale-correct narrow weekday initials (Sun...Sat), e.g. S M T W T F S in English, Z M D W D V Z in Dutch. */
+export function weekdayLabels(locale: string): string[] {
+  const fmt = new Intl.DateTimeFormat(locale, { weekday: 'narrow' });
+  // Jan 4, 1970 was a Sunday — used purely as a known week anchor.
+  return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(1970, 0, 4 + i)));
 }
 
 export function parseDateKey(key: string): Date {

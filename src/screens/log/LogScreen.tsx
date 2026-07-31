@@ -5,15 +5,26 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../../store/AppContext';
 import { themeFor } from '../../theme/theme';
-import { DarkModeIcon } from '../../components/icons';
-import { Chip } from '../../components/Chip';
-import { MonthChart } from './MonthChart';
+import { EditIcon } from '../../components/icons';
+import { MonthCalendar } from './MonthCalendar';
 import { ManualEntrySheet } from './ManualEntrySheet';
-import { buildChartMonth, currentMonthHours, liveTodayHours, studiesForMonth } from '../../store/selectors';
+import { LogVisitSheet } from './LogVisitSheet';
+import { RecentVisitsCard } from './RecentVisitsCard';
+import {
+  buildChartMonth,
+  currentMonthHours,
+  liveTodayHours,
+  recentVisits,
+  sortedContacts,
+  studiesForMonth,
+  studyContacts,
+} from '../../store/selectors';
 import { currentMonthKey, dateKey, monthLabel, todayKey } from '../../utils/dates';
 import { fmtHours } from '../../utils/format';
 import { INTL_LOCALE_TAGS } from '../../i18n/language';
 import type { TabScreenNavProp } from '../../navigation/types';
+
+const QUICK_STEP = 0.5;
 
 export function LogScreen({ navigation }: { navigation: TabScreenNavProp<'Log'> }) {
   const { state, actions } = useApp();
@@ -23,11 +34,12 @@ export function LogScreen({ navigation }: { navigation: TabScreenNavProp<'Log'> 
   const insets = useSafeAreaInsets();
   const [now, setNow] = useState(() => Date.now());
   const [chartOffset, setChartOffset] = useState(0);
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [manualEntry, setManualEntry] = useState<{ open: boolean; targetDate: string }>({
     open: false,
     targetDate: todayKey(),
   });
+  const [studySheetVisible, setStudySheetVisible] = useState(false);
+  const [logVisitSheetVisible, setLogVisitSheetVisible] = useState(false);
 
   useEffect(() => {
     if (!state.timerStartedAt) return;
@@ -35,6 +47,8 @@ export function LogScreen({ navigation }: { navigation: TabScreenNavProp<'Log'> 
     return () => clearInterval(id);
   }, [state.timerStartedAt]);
 
+  // In case a timer session is resumed from persisted state, still hand off to
+  // the Timer screen — there's just no button on this screen to start one.
   useFocusEffect(
     React.useCallback(() => {
       if (state.timerStartedAt) navigation.navigate('Timer');
@@ -45,111 +59,121 @@ export function LogScreen({ navigation }: { navigation: TabScreenNavProp<'Log'> 
   const todayHours = useMemo(() => liveTodayHours(state, now), [state, now]);
   const monthStudies = useMemo(() => studiesForMonth(state, currentMonthKey()), [state]);
   const chart = useMemo(() => buildChartMonth(state, chartOffset, locale, now), [state, chartOffset, locale, now]);
+  const recent = useMemo(() => recentVisits(state.contacts, 8), [state.contacts]);
 
-  const QUICK_STEP = 0.5;
   const canSubtract = todayHours > 0;
+
+  const openManualEntry = (targetDate: string) => setManualEntry({ open: true, targetDate });
 
   return (
     <View style={[styles.flex, { backgroundColor: theme.bg }]}>
-      {/* Hero: header, totals, Start button, quick add/subtract, manual entry.
-          Natural (non-flex) height — this never changes size, so it never moves
-          the "This month" section below it, regardless of that section's state. */}
-      <View style={[styles.hero, { paddingTop: insets.top + 12 }]}>
-        <View style={styles.headerRow}>
-          <Text style={[styles.title, { color: theme.text }]}>{t('log.title')}</Text>
-          <Pressable
-            onPress={actions.toggleDark}
-            style={[styles.darkToggle, { borderColor: theme.border }]}
-          >
-            <DarkModeIcon dark={state.darkMode} color={theme.secondaryText} size={18} />
-          </Pressable>
-        </View>
-        <Text style={[styles.monthLabel, { color: theme.secondaryText }]}>{monthLabel(new Date(), locale)}</Text>
+      <ScrollView style={styles.flex} contentContainerStyle={[styles.container, { paddingTop: insets.top + 12 }]}>
+        <Text style={[styles.title, { color: theme.text }]}>{t('log.title')}</Text>
 
-        <View style={styles.totals}>
-          <Text style={[styles.totalsLabel, { color: theme.secondaryText }]}>{t('log.hoursThisMonth')}</Text>
-          <Text style={[styles.totalsValue, { color: theme.text }]}>{fmtHours(monthHours)}</Text>
-          <Text style={[styles.subLabel, { color: theme.secondaryText }]}>
-            {t('log.todayStudies', { hours: fmtHours(todayHours), count: monthStudies })}
-          </Text>
-        </View>
+        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View style={styles.headerRow}>
+            <Text style={[styles.monthLabel, { color: theme.secondaryText }]}>{monthLabel(new Date(), locale)}</Text>
+            <Pressable onPress={() => openManualEntry(todayKey())} style={styles.addManuallyBtn} hitSlop={8}>
+              <EditIcon color={theme.secondaryText} size={13} />
+              <Text style={[styles.addManuallyLabel, { color: theme.secondaryText }]}>{t('log.addManually')}</Text>
+            </Pressable>
+          </View>
 
-        <View style={styles.startWrap}>
-          <Pressable
-            onPress={() => {
-              actions.startTimer();
-              navigation.navigate('Timer');
-            }}
-            style={[styles.startBtn, { backgroundColor: theme.accent, shadowColor: theme.accentShadow }]}
-          >
-            <Text style={[styles.startLabel, { color: theme.accentText }]}>{t('log.start')}</Text>
-          </Pressable>
-        </View>
+          <View style={styles.statsRow}>
+            <Text style={[styles.totalsValue, { color: theme.text }]}>{fmtHours(monthHours)}</Text>
+            <View style={styles.statsRight}>
+              <Text style={[styles.todayHours, { color: theme.text }]}>
+                {t('log.todayHours', { hours: fmtHours(todayHours) })}
+              </Text>
+              <View style={styles.studiesRow}>
+                <Text style={[styles.studiesCount, { color: theme.secondaryText }]}>
+                  {t('log.studiesCount', { count: monthStudies })}
+                </Text>
+                <Pressable
+                  onPress={() => setStudySheetVisible(true)}
+                  accessibilityLabel={t('log.addStudyAccessibility')}
+                  hitSlop={8}
+                  style={[styles.addStudyBtn, { borderColor: theme.border }]}
+                >
+                  <Text style={[styles.addStudyPlus, { color: theme.secondaryText }]}>+</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
 
-        <View style={styles.chipsRow}>
-          <Chip
-            label={t('log.subtractChip', { value: QUICK_STEP })}
-            onPress={() => actions.addHours(todayKey(), -QUICK_STEP)}
-            borderColor={theme.border}
-            color={theme.text}
-            disabled={!canSubtract}
-          />
-          <Chip
-            label={t('log.addChip', { value: QUICK_STEP })}
-            onPress={() => actions.addHours(todayKey(), QUICK_STEP)}
-            borderColor={theme.border}
-            color={theme.text}
-          />
-        </View>
+          <View style={[styles.divider, { backgroundColor: theme.border }]} />
 
-        <Pressable
-          onPress={() => setManualEntry({ open: true, targetDate: todayKey() })}
-          style={styles.manualLink}
-        >
-          <Text style={[styles.manualLabel, { color: theme.secondaryText }]}>
-            <Text style={styles.plus}>+</Text> {t('log.manualEntry')}
-          </Text>
-        </Pressable>
-      </View>
-
-      {/* This month: fills all remaining space below the hero, so its top edge
-          never moves regardless of screen size or content. Always visible,
-          never collapsible. If the chart is ever taller than the room
-          available here, it scrolls within this region alone, never
-          disturbing the hero above or this section's own position. */}
-      <View style={styles.chartRegion}>
-        <View style={[styles.chartHeader, { borderTopColor: theme.border, borderBottomColor: theme.border }]}>
-          <Text style={[styles.chartHeaderLabel, { color: theme.text }]}>{t('log.thisMonth')}</Text>
+          <View style={styles.stepperRow}>
+            <Pressable
+              onPress={() => actions.addHours(todayKey(), -QUICK_STEP)}
+              disabled={!canSubtract}
+              accessibilityLabel={t('log.decreaseAccessibility', { value: QUICK_STEP })}
+              style={[styles.stepBtn, { borderColor: theme.border, opacity: canSubtract ? 1 : 0.4 }]}
+            >
+              <Text style={[styles.stepBtnLabel, { color: theme.text }]}>−</Text>
+            </Pressable>
+            <Text style={[styles.stepValue, { color: theme.secondaryText }]}>
+              {t('log.quickStepLabel', { value: QUICK_STEP })}
+            </Text>
+            <Pressable
+              onPress={() => actions.addHours(todayKey(), QUICK_STEP)}
+              accessibilityLabel={t('log.increaseAccessibility', { value: QUICK_STEP })}
+              style={[styles.stepBtn, { backgroundColor: theme.accent, borderColor: theme.accent }]}
+            >
+              <Text style={[styles.stepBtnLabel, { color: theme.accentText }]}>+</Text>
+            </Pressable>
+          </View>
         </View>
 
-        <ScrollView style={styles.flex} contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}>
-          <MonthChart
+        <RecentVisitsCard
+          theme={theme}
+          locale={locale}
+          visits={recent}
+          onLogVisit={() => setLogVisitSheetVisible(true)}
+          onOpenVisit={(v) => navigation.navigate('AddEditVisit', { contactId: v.contactId, visitId: v.visitId })}
+        />
+
+        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <MonthCalendar
             theme={theme}
             chart={chart}
             locale={locale}
             canGoNext={chartOffset < 0}
-            onPrevMonth={() => {
-              setChartOffset((o) => Math.max(-24, o - 1));
-              setSelectedDay(null);
-            }}
-            onNextMonth={() => {
-              setChartOffset((o) => Math.min(0, o + 1));
-              setSelectedDay(null);
-            }}
-            selectedDay={selectedDay}
-            onSelectDay={setSelectedDay}
-            onAddTimeForDay={(day) => {
-              const target = dateKey(new Date(chart.year, chart.month0, day));
-              setManualEntry({ open: true, targetDate: target });
-            }}
+            onPrevMonth={() => setChartOffset((o) => Math.max(-24, o - 1))}
+            onNextMonth={() => setChartOffset((o) => Math.min(0, o + 1))}
+            onSelectDay={(day) => openManualEntry(dateKey(new Date(chart.year, chart.month0, day)))}
           />
-        </ScrollView>
-      </View>
+        </View>
+      </ScrollView>
 
       <ManualEntrySheet
         visible={manualEntry.open}
         targetDate={manualEntry.targetDate}
         onClose={() => setManualEntry((m) => ({ ...m, open: false }))}
+      />
+
+      <LogVisitSheet
+        visible={studySheetVisible}
+        contacts={studyContacts(state.contacts)}
+        title={t('logStudy.title')}
+        subtitle={t('logStudy.subtitle')}
+        emptyText={t('logStudy.empty')}
+        addContactLabel={t('logStudy.addContact')}
+        onClose={() => setStudySheetVisible(false)}
+        navigation={navigation}
+        theme={theme}
+      />
+
+      <LogVisitSheet
+        visible={logVisitSheetVisible}
+        contacts={sortedContacts(state.contacts)}
+        title={t('logVisit.title')}
+        subtitle={t('logVisit.subtitle')}
+        emptyText={t('logVisit.empty')}
+        addContactLabel={t('logStudy.addContact')}
+        onClose={() => setLogVisitSheetVisible(false)}
+        navigation={navigation}
+        theme={theme}
       />
     </View>
   );
@@ -157,44 +181,50 @@ export function LogScreen({ navigation }: { navigation: TabScreenNavProp<'Log'> 
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  hero: { paddingHorizontal: 24 },
-  chartRegion: { flex: 1, paddingHorizontal: 24 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  title: { fontSize: 28, fontWeight: '700', letterSpacing: -0.4 },
-  darkToggle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  container: { padding: 24, paddingBottom: 32 },
+  title: { fontSize: 28, fontWeight: '700', letterSpacing: -0.4, marginBottom: 20 },
+  card: { borderWidth: 1, borderRadius: 12, padding: 16, marginBottom: 20 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
+  statsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 },
+  monthLabel: { fontSize: 12, includeFontPadding: false },
+  totalsValue: {
+    fontSize: 48,
+    fontWeight: '700',
+    letterSpacing: -2,
+    lineHeight: 48,
+    includeFontPadding: false,
+    fontVariant: ['tabular-nums'],
+  },
+  statsRight: { alignItems: 'flex-end', gap: 6 },
+  addManuallyBtn: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  addManuallyLabel: { fontSize: 12, includeFontPadding: false },
+  todayHours: {
+    fontSize: 13,
+    fontWeight: '600',
+    includeFontPadding: false,
+    fontVariant: ['tabular-nums'],
+  },
+  studiesRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  studiesCount: { fontSize: 12.5, includeFontPadding: false },
+  addStudyBtn: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  monthLabel: { fontSize: 13, marginBottom: 20 },
-  totals: { alignItems: 'center', marginBottom: 6 },
-  totalsLabel: { fontSize: 15, marginBottom: 6 },
-  totalsValue: { fontSize: 64, fontWeight: '700', letterSpacing: -2, lineHeight: 68 },
-  subLabel: { fontSize: 13, marginTop: 10 },
-  startWrap: { alignItems: 'center', justifyContent: 'center', paddingVertical: 18 },
-  startBtn: {
-    width: 148,
-    height: 148,
-    borderRadius: 74,
+  addStudyPlus: { fontSize: 11, lineHeight: 12, includeFontPadding: false },
+  divider: { height: StyleSheet.hairlineWidth, marginBottom: 10 },
+  stepperRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  stepBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOpacity: 1,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
   },
-  startLabel: { fontSize: 17, fontWeight: '600', letterSpacing: 0.3 },
-  chipsRow: { flexDirection: 'row', gap: 14, justifyContent: 'center', marginBottom: 8 },
-  manualLink: { alignItems: 'center', paddingVertical: 8 },
-  manualLabel: { fontSize: 13.5 },
-  plus: { fontSize: 16 },
-  chartHeader: {
-    paddingVertical: 14,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-  },
-  chartHeaderLabel: { fontSize: 14.5, fontWeight: '600' },
+  stepBtnLabel: { fontSize: 20, fontWeight: '600' },
+  stepValue: { fontSize: 13, fontWeight: '600', letterSpacing: 0.4 },
 });

@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../../store/AppContext';
 import { themeFor, onboardingTint } from '../../theme/theme';
 import { LabeledInput } from '../../components/Field';
 import { PillButton } from '../../components/PillButton';
+import { AuxPioneerFields } from '../../components/AuxPioneerFields';
 import { useRoleMeta } from '../../i18n/labels';
-import type { Role } from '../../store/types';
+import { INTL_LOCALE_TAGS } from '../../i18n/language';
+import type { BaseRole } from '../../store/types';
 
-const ROLE_ORDER: Role[] = ['publisher', 'aux_pioneer', 'regular_pioneer', 'special_pioneer'];
+const ROLE_ORDER: BaseRole[] = ['publisher', 'regular_pioneer', 'special_pioneer'];
 const TOTAL_STEPS = 4;
 
 export function OnboardingScreen() {
@@ -16,6 +18,7 @@ export function OnboardingScreen() {
   const { t } = useTranslation();
   const roleMeta = useRoleMeta();
   const theme = themeFor(state.darkMode);
+  const locale = INTL_LOCALE_TAGS[state.language];
   const [step, setStep] = useState(0);
   const primaryLabels = [t('onboarding.primaryGetStarted'), t('onboarding.primaryContinue'), t('onboarding.primaryContinue'), t('onboarding.primaryFinish')];
 
@@ -66,7 +69,7 @@ export function OnboardingScreen() {
       ) : null}
 
       {step === 2 ? (
-        <View style={styles.stepBody}>
+        <ScrollView style={styles.stepBody} showsVerticalScrollIndicator={false}>
           <Text style={[styles.stepTitle, { color: theme.text }]}>{t('onboarding.roleTitle')}</Text>
           <Text style={[styles.stepSub, { color: theme.secondaryText }]}>{t('onboarding.roleSubtitle')}</Text>
           <View style={{ gap: 10 }}>
@@ -86,7 +89,23 @@ export function OnboardingScreen() {
               );
             })}
           </View>
-        </View>
+
+          {state.role === 'publisher' ? (
+            <View style={styles.auxSection}>
+              <Text style={[styles.auxTitle, { color: theme.text }]}>{t('onboarding.auxPioneerTitle')}</Text>
+              <Text style={[styles.auxSubtitle, { color: theme.secondaryText }]}>
+                {t('onboarding.auxPioneerSubtitle')}
+              </Text>
+              <AuxPioneerFields
+                schedule={state.auxPioneerSchedule}
+                onSetOngoing={actions.setAuxPioneerOngoing}
+                onToggleMonth={actions.toggleAuxPioneerMonth}
+                theme={theme}
+                locale={locale}
+              />
+            </View>
+          ) : null}
+        </ScrollView>
       ) : null}
 
       {step === 3 ? (
@@ -125,6 +144,9 @@ const styles = StyleSheet.create({
   stepSub: { fontSize: 13.5, marginBottom: 28 },
   roleCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 18, borderRadius: 14, borderWidth: 1.5 },
   roleDot: { width: 9, height: 9, borderRadius: 5 },
+  auxSection: { marginTop: 22 },
+  auxTitle: { fontSize: 15, fontWeight: '700', marginBottom: 4 },
+  auxSubtitle: { fontSize: 12.5, marginBottom: 14 },
   dotsRow: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginVertical: 20 },
   dot: { width: 6, height: 6, borderRadius: 3 },
 });

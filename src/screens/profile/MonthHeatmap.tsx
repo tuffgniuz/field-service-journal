@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { Theme } from '../../theme/theme';
 import type { ChartMonth } from '../../store/selectors';
 import { hexToRgba } from '../../utils/color';
+import { weekdayLabels } from '../../utils/dates';
 
 /** Hours in a single day treated as "a full day" — reaches full color intensity at this point. */
 const CAP_HOURS = 4;
@@ -12,13 +13,6 @@ interface DayCell {
   day: number;
   hours: number;
   isToday: boolean;
-}
-
-/** Locale-correct narrow weekday initials (Sun...Sat), e.g. S M T W T F S in English, Z M D W D V Z in Dutch. */
-function weekdayLabels(locale: string): string[] {
-  const fmt = new Intl.DateTimeFormat(locale, { weekday: 'narrow' });
-  // Jan 4, 1970 was a Sunday — used purely as a known week anchor.
-  return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(1970, 0, 4 + i)));
 }
 
 /**

@@ -1,39 +1,70 @@
 {
   "expo": {
-    "name": "fieldbook-app",
-    "slug": "fieldbook-app",
+    "name": "Field Service Journal",
+    "slug": "field-service-journal-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/icons/icon-master-dark-1024.png",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "LSApplicationQueriesSchemes": ["whatsapp", "tg", "telegram"],
-        "NSPhotoLibraryUsageDescription": "Fieldbook uses your photo library so you can choose a profile picture."
-      }
+        "LSApplicationQueriesSchemes": [
+          "whatsapp",
+          "tg",
+          "telegram"
+        ],
+        "NSPhotoLibraryUsageDescription": "Field Service Journal uses your photo library so you can choose a profile picture."
+      },
+      "bundleIdentifier": "com.anonymous.fieldservicejournalapp"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "foregroundImage": "./assets/icons/icon-adaptive-foreground.png",
+        "backgroundColor": "#1C2B4A",
+        "monochromeImage": "./assets/icons/icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "softwareKeyboardLayoutMode": "pan"
+      "softwareKeyboardLayoutMode": "pan",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.anonymous.fieldservicejournalapp"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/icons/icon-monochrome.png"
     },
     "plugins": [
       [
         "expo-image-picker",
         {
-          "photosPermission": "Fieldbook uses your photo library so you can choose a profile picture."
+          "photosPermission": "Field Service Journal uses your photo library so you can choose a profile picture."
         }
       ],
-      "expo-notifications"
-    ]
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icons/icon-monochrome.png",
+          "color": "#1C2B4A"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash/splash-light.png",
+          "backgroundColor": "#FAFAF8",
+          "dark": {
+            "image": "./assets/splash/splash-dark.png",
+            "backgroundColor": "#1C2B4A"
+          },
+          "imageWidth": 200
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "cd984473-27c3-4a12-9fd5-0272ccc62dd7"
+      }
+    }
   }
 }
