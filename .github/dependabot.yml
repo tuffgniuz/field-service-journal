@@ -1,0 +1,19 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      expo-and-react-native:
+        patterns:
+          - "expo*"
+          - "react-native*"
+          - "@react-native*"
+          - "react"
+          - "react-dom"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

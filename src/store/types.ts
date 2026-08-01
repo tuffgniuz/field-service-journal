@@ -60,7 +60,6 @@ export interface AppState {
   reportRecipient: string;
   recipientPhone: string;
   recipientEmail: string;
-  participated: boolean;
   contacts: Contact[];
   dailyLogs: DailyLogs;
   /** Epoch ms the running timer was started, or null if no timer is running. Persisted so an in-progress session survives an app restart. */
@@ -69,6 +68,8 @@ export interface AppState {
   monthlyParticipation: Record<string, boolean>;
   /** Whether the monthly "send your report" push reminder (1st of each month) is turned on. */
   reportReminderEnabled: boolean;
+  /** "YYYY-MM" of the last month the user explicitly confirmed their report was sent, or null before the first confirmation. The Report screen stays on the month after this (see `pendingReportMonth`) instead of always following the calendar. */
+  lastReportedMonth: string | null;
   /** Hours a regular pioneer had already put in this service year before starting to log via Field Service Journal. */
   serviceYearStartingHours: number;
   /** The service-year label (see serviceYearLabel()) `serviceYearStartingHours` was entered for. Once a new service year begins this no longer matches, so the offset stops applying. */

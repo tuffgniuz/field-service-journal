@@ -4,12 +4,13 @@ import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, DefaultTheme, DarkTheme, createNavigationContainerRef } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
-import { AppProvider, useApp } from './src/store/AppContext';
-import { UiProvider, useUi } from './src/store/UiContext';
+import "./src/theme/globals.css";
+import { AppProvider, useApp } from './src/store/app-context';
+import { UiProvider, useUi } from './src/store/ui-context';
 import { themeFor } from './src/theme/theme';
-import { OnboardingScreen } from './src/screens/onboarding/OnboardingScreen';
-import { RootNavigator } from './src/navigation/RootNavigator';
-import { Toast } from './src/components/Toast';
+import { OnboardingScreen } from './src/screens/onboarding/onboarding-screen';
+import { RootNavigator } from './src/navigation/root-navigator';
+import { Toast } from './src/components/feedback/toast';
 import { isLastDayOfMonthReminderNotification, isReportReminderNotification } from './src/utils/notifications';
 import type { RootStackParamList } from './src/navigation/types';
 

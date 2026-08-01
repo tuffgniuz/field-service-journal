@@ -20,11 +20,3 @@ export async function saveState(state: AppState): Promise<void> {
     // local-first, best-effort persistence — swallow write errors
   }
 }
-
-export async function clearState(): Promise<void> {
-  try {
-    await AsyncStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // ignore
-  }
-}

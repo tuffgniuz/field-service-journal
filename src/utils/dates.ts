@@ -1,3 +1,5 @@
+import i18next from 'i18next';
+
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
 /** "YYYY-MM-DD" for a Date, in local time. */
@@ -62,6 +64,10 @@ export function weekdayLabels(locale: string): string[] {
 }
 
 export function parseDateKey(key: string): Date {
+  if (!key || typeof key !== 'string') return new Date();
+  if (key.includes('T')) {
+    return new Date(key);
+  }
   const [y, m, d] = key.split('-').map(Number);
   return new Date(y, m - 1, d);
 }
@@ -81,10 +87,6 @@ export function daysSince(key: string): number {
   return Math.round((startOfNow.getTime() - then.getTime()) / 86400000);
 }
 
-export function isSameMonth(key: string, monthKey: string): boolean {
-  return key.slice(0, 7) === monthKey;
-}
-
 /**
  * The JW "service year" runs September 1 – August 31 and is labeled by the
  * year it ends in (e.g. Sep 2025 – Aug 2026 is "service year 2026"; the next
@@ -101,4 +103,76 @@ export function currentServiceYearLabel(): number {
 /** Start (inclusive) and end (exclusive) dates spanning the given service year label. */
 export function serviceYearRange(label: number): { start: Date; end: Date } {
   return { start: new Date(label - 1, 8, 1), end: new Date(label, 8, 1) };
+}
+
+export function formatRelativeTime(dateStr: string, locale: string = 'en-US'): string {
+  // Check if it's a pure date without time (length 10 like "YYYY-MM-DD")
+  const isPureDate = dateStr.length === 10 && dateStr.includes('-') && !dateStr.includes('T');
+
+  let days = 0;
+  if (isPureDate) {
+    const today = todayKey();
+    if (dateStr === today) {
+      return i18next.t('dates.today', { defaultValue: 'Today' });
+    }
+
+    const yesterdayDate = new Date();
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterday = dateKey(yesterdayDate);
+    if (dateStr === yesterday) {
+      return i18next.t('dates.yesterday', { defaultValue: 'Yesterday' });
+    }
+
+    // Calculate daysSince
+    days = daysSince(dateStr);
+  } else {
+    // It's a full timestamp (ISO string with time)
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+
+    // If the date is in the future or extremely close to now
+    if (diffMs < 60000) {
+      return i18next.t('dates.now', { defaultValue: 'now' });
+    }
+
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 60) {
+      return i18next.t('dates.minutesAgo', { count: diffMins, defaultValue: `${diffMins} minutes ago` });
+    }
+
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) {
+      return i18next.t('dates.hoursAgo', { count: diffHours, defaultValue: `${diffHours} hours ago` });
+    }
+
+    // More than 24 hours: fallback to days calculation
+    const pureDatePart = dateStr.slice(0, 10);
+    days = daysSince(pureDatePart);
+  }
+
+  // Handle day-based scales (Yesterday is handled above for pure date, but let's handle 1 day for ISO dates too)
+  if (days === 1) {
+    return i18next.t('dates.yesterday', { defaultValue: 'Yesterday' });
+  }
+
+  if (days < 7) {
+    return i18next.t('dates.daysAgo', { count: days, defaultValue: `${days} days ago` });
+  }
+
+  // Handle weeks
+  if (days < 30) {
+    const weeks = Math.floor(days / 7);
+    return i18next.t('dates.weeksAgo', { count: weeks, defaultValue: `${weeks} ${weeks === 1 ? 'week' : 'weeks'} ago` });
+  }
+
+  // Handle months
+  if (days < 365) {
+    const months = Math.floor(days / 30);
+    return i18next.t('dates.monthsAgo', { count: months, defaultValue: `${months} ${months === 1 ? 'month' : 'months'} ago` });
+  }
+
+  // Handle years
+  const years = Math.floor(days / 365);
+  return i18next.t('dates.yearsAgo', { count: years, defaultValue: `${years} ${years === 1 ? 'year' : 'years'} ago` });
 }

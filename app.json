@@ -26,9 +26,6 @@
       },
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "pan",
-      "permissions": [
-        "android.permission.RECORD_AUDIO"
-      ],
       "package": "com.anonymous.fieldservicejournalapp"
     },
     "web": {
@@ -46,6 +43,12 @@
         {
           "icon": "./assets/icons/icon-monochrome.png",
           "color": "#1C2B4A"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Field Service Journal uses your location to fill in a contact's address for you."
         }
       ],
       [

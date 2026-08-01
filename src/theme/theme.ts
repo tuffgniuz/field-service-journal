@@ -51,19 +51,3 @@ export const onboardingTint = {
   light: '#F2F0F7',
   dark: '#12172A',
 };
-
-export const spacing = {
-  xs: 4,
-  sm: 8,
-  md: 16,
-  lg: 24,
-  xl: 32,
-};
-
-export const radii = {
-  sm: 8,
-  md: 12,
-  lg: 14,
-  xl: 16,
-  pill: 999,
-};

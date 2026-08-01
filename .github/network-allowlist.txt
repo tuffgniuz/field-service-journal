@@ -1,0 +1,15 @@
+# Hosts this app is allowed to contact from src/ code.
+# One host per line. Add a line above the new host when a PR
+# legitimately introduces a new fetch/axios call, with a comment
+# explaining what it's for and pointing at the file.
+
+# src/utils/translate.ts - optional report translation (MyMemory, keyless)
+api.mymemory.translated.net
+mymemory.translated.net
+
+# src/utils/share.ts - "Share via Telegram" fallback opens t.me with the
+# report text URL-encoded into the query string (Linking.openURL, not a
+# fetch call - hands off to the OS/Telegram app rather than sending data
+# from this app directly, but the report text does leave the device in
+# the URL, so it's tracked here deliberately).
+t.me

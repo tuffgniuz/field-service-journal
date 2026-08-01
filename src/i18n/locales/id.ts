@@ -99,9 +99,11 @@ const id: typeof en = {
     nextMonth: "Bulan berikutnya",
     monthlyGoalTitle: "Target perintis bulanan",
     yearlyGoalTitle: "Target tahun dinas",
-    hoursToGoShort_one: "Kurang {{count}} jam",
-    hoursToGoShort_other: "Kurang {{count}} jam",
-    goalReachedShort: "Target tercapai",
+    progressNotStarted: "Siap untuk memulai?",
+    progressStarted: "Awal yang bagus! Sisa {{count}} jam.",
+    progressHalfway: "Kerja bagus, sudah lewat separuh jalan! (Sisa {{count}} jam)",
+    progressAlmost: "Hampir selesai! Tinggal {{count}} jam lagi.",
+    progressReached: "Target tercapai! Luar biasa.",
     serviceYearCaption: "Tahun dinas {{year}}",
     totalHours: "Total jam",
     avgMonthlyHours: "Rata-rata per bulan",
@@ -229,6 +231,7 @@ const id: typeof en = {
     hoursSummary: "{{value}} jam",
   },
   studies: {
+    addContactBtn: '+ Kontak',
     noContacts: "Belum ada kontak.",
     addContact: "Tambah kontak",
     daysSinceLastVisit_one:
@@ -253,6 +256,10 @@ const id: typeof en = {
     locating: "Mencari lokasi…",
     locationFailed: "Tidak dapat menentukan alamatmu",
     save: "Simpan kontak",
+    deleteContact: "Hapus kontak",
+    deleteTitle: "Hapus kontak ini?",
+    deleteMessage:
+      "Ini akan menghapus kontak beserta seluruh riwayat kunjungannya secara permanen. Tindakan ini tidak dapat dibatalkan.",
   },
   addVisit: {
     cancel: "Batal",
@@ -290,6 +297,23 @@ const id: typeof en = {
     dialogTitle: "Ekspor data Field Service Journal",
     shareTitle: "Laporan Field Service Journal",
     emailSubject: "Laporan dinas lapangan",
+  },
+  dates: {
+    now: "baru saja",
+    minutesAgo_one: "1 menit yang lalu",
+    minutesAgo_other: "{{count}} menit yang lalu",
+    hoursAgo_one: "1 jam yang lalu",
+    hoursAgo_other: "{{count}} jam yang lalu",
+    today: "Hari ini",
+    yesterday: "Kemarin",
+    daysAgo_one: "1 hari yang lalu",
+    daysAgo_other: "{{count}} hari yang lalu",
+    weeksAgo_one: "1 minggu yang lalu",
+    weeksAgo_other: "{{count}} minggu yang lalu",
+    monthsAgo_one: "1 bulan yang lalu",
+    monthsAgo_other: "{{count}} bulan yang lalu",
+    yearsAgo_one: "1 tahun yang lalu",
+    yearsAgo_other: "{{count}} tahun yang lalu",
   },
 };
 

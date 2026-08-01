@@ -1,5 +1,5 @@
 import * as Localization from 'expo-localization';
-import type { AppLanguage, LanguagePreference } from '../store/types';
+import type { AppLanguage } from '../store/types';
 
 export const SUPPORTED_LANGUAGES: AppLanguage[] = ['en', 'nl', 'id'];
 
@@ -29,8 +29,4 @@ export function pickSupportedLanguage(locales: { languageCode: string | null }[]
 /** Reads the device's locale list and returns the first supported language, or 'en' if none match. */
 export function resolveDeviceLanguage(): AppLanguage {
   return pickSupportedLanguage(Localization.getLocales());
-}
-
-export function resolveLanguage(preference: LanguagePreference): AppLanguage {
-  return preference === 'system' ? resolveDeviceLanguage() : preference;
 }
