@@ -5,6 +5,7 @@ import type { Theme } from '../../theme/theme';
 import type { RecentVisit } from '../../store/selectors';
 import { statusColor } from '../../utils/statusColor';
 import { formatShortDate } from '../../utils/dates';
+import { ContactAvatar } from '../../components/ContactAvatar';
 
 export function RecentVisitsCard({
   theme,
@@ -22,7 +23,7 @@ export function RecentVisitsCard({
   const { t } = useTranslation();
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+    <View style={styles.section}>
       <View style={styles.header}>
         <Text style={[styles.label, { color: theme.secondaryText }]}>{t('log.recentVisits')}</Text>
         <Pressable onPress={onLogVisit} hitSlop={8}>
@@ -31,7 +32,14 @@ export function RecentVisitsCard({
       </View>
 
       {visits.length === 0 ? (
-        <Text style={[styles.empty, { color: theme.secondaryText }]}>{t('log.noRecentVisits')}</Text>
+        <View
+          style={[
+            styles.emptyCard,
+            { backgroundColor: theme.card, borderColor: theme.border },
+          ]}
+        >
+          <Text style={[styles.emptyText, { color: theme.secondaryText }]}>{t('log.noRecentVisits')}</Text>
+        </View>
       ) : (
         <FlatList
           horizontal
@@ -42,10 +50,15 @@ export function RecentVisitsCard({
           renderItem={({ item }) => (
             <Pressable
               onPress={() => onOpenVisit(item)}
-              style={[styles.visitCard, { backgroundColor: theme.bg, borderColor: theme.border }]}
+              style={[styles.visitCard, { backgroundColor: theme.card }]}
             >
               <View style={styles.nameRow}>
-                <View style={[styles.dot, { backgroundColor: statusColor(theme, item.status) }]} />
+                <ContactAvatar
+                  name={item.contactName}
+                  color={statusColor(theme, item.status)}
+                  size={22}
+                  fontSize={9}
+                />
                 <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>
                   {item.contactName}
                 </Text>
@@ -63,16 +76,25 @@ export function RecentVisitsCard({
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: 12, padding: 16, marginBottom: 20 },
+  section: { marginBottom: 20 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
   label: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4 },
   logVisitLink: { fontSize: 12.5, fontWeight: '600' },
-  empty: { fontSize: 13 },
+  emptyCard: {
+    width: 160,
+    minHeight: 96,
+    borderWidth: 1,
+    borderStyle: 'dotted',
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: { fontSize: 13, textAlign: 'center' },
   list: { gap: 10 },
-  visitCard: { width: 160, borderWidth: 1, borderRadius: 12, padding: 12 },
+  visitCard: { width: 160, borderRadius: 12, padding: 12 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
-  dot: { width: 6, height: 6, borderRadius: 3 },
   name: { fontSize: 13.5, fontWeight: '600', flex: 1 },
-  date: { fontSize: 11.5, marginBottom: 6 },
+  date: { fontSize: 10, marginBottom: 6 },
   snippet: { fontSize: 12, lineHeight: 16 },
 });

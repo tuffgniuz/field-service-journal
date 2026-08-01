@@ -30,6 +30,18 @@ export function monthByOffset(offset: number): Date {
   return new Date(now.getFullYear(), now.getMonth() + offset, 1);
 }
 
+/** Returns the "YYYY-MM" key for the month right after the given one. */
+export function nextMonthKey(key: string): string {
+  const d = parseMonthKey(key);
+  return monthKeyOf(new Date(d.getFullYear(), d.getMonth() + 1, 1));
+}
+
+/** Returns the "YYYY-MM" key for the month right before the given one. */
+export function previousMonthKey(key: string): string {
+  const d = parseMonthKey(key);
+  return monthKeyOf(new Date(d.getFullYear(), d.getMonth() - 1, 1));
+}
+
 export function daysInMonth(year: number, month0: number): number {
   return new Date(year, month0 + 1, 0).getDate();
 }
@@ -54,8 +66,12 @@ export function parseDateKey(key: string): Date {
   return new Date(y, m - 1, d);
 }
 
-export function formatShortDate(key: string, locale: string = 'en-US'): string {
-  return parseDateKey(key).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
+export function formatShortDate(key: string, locale: string = 'en-US', includeYear: boolean = true): string {
+  return parseDateKey(key).toLocaleDateString(locale, {
+    month: 'short',
+    day: 'numeric',
+    ...(includeYear ? { year: 'numeric' } : {}),
+  });
 }
 
 export function daysSince(key: string): number {

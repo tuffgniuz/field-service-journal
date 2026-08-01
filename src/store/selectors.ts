@@ -6,10 +6,36 @@ import {
   daysSince,
   monthByOffset,
   monthKeyOf,
+  nextMonthKey,
   parseDateKey,
+  parseMonthKey,
   serviceYearRange,
   todayKey,
 } from '../utils/dates';
+
+/**
+ * The month the Report screen should show and report on. Normally the current
+ * calendar month, but it stays pinned to the month right after
+ * `lastReportedMonth` until the user explicitly confirms that one was sent —
+ * so a report that falls behind doesn't silently get skipped by the calendar
+ * moving on.
+ */
+export function pendingReportMonth(state: AppState, nowMs: number = Date.now()): string {
+  const current = monthKeyOf(new Date(nowMs));
+  if (!state.lastReportedMonth) return current;
+  const next = nextMonthKey(state.lastReportedMonth);
+  return next > current ? current : next;
+}
+
+/** Whether the report screen is stuck on a past month awaiting confirmation, rather than the current one. */
+export function isReportOverdue(state: AppState, nowMs: number = Date.now()): boolean {
+  return pendingReportMonth(state, nowMs) !== monthKeyOf(new Date(nowMs));
+}
+
+/** "Shared in the ministry" for a given month, defaulting to true until explicitly toggled off. */
+export function participatedFor(state: AppState, monthKey: string): boolean {
+  return state.monthlyParticipation[monthKey] ?? true;
+}
 
 export function liveTodayHours(state: AppState, nowMs: number = Date.now()): number {
   const base = state.dailyLogs[todayKey()] || 0;
@@ -27,6 +53,87 @@ export function monthHoursFor(state: AppState, monthKey: string, nowMs: number =
     sum += Math.max(0, (nowMs - state.timerStartedAt) / 3_600_000);
   }
   return Math.round(sum * 100) / 100;
+}
+
+export interface ReportHoursCalculation {
+  loggedHours: number;      // raw hours logged in this month (including active timer)
+  rolloverFromPrev: number; // hours rolled over from the previous month
+  totalAccumulated: number; // loggedHours + rolloverFromPrev
+  reportHours: number;      // Math.floor(totalAccumulated)
+  remainder: number;        // totalAccumulated - reportHours
+}
+
+export function calculateReportHours(
+  state: AppState,
+  targetMonthKey: string,
+  nowMs: number = Date.now()
+): ReportHoursCalculation {
+  // Find all date keys from dailyLogs
+  const dates = Object.keys(state.dailyLogs).filter((k) => k.slice(0, 7) <= targetMonthKey).sort();
+
+  // If no logs, but target is current month, we might have active timer
+  if (dates.length === 0) {
+    let logged = 0;
+    if (targetMonthKey === currentMonthKey() && state.timerStartedAt) {
+      logged = Math.max(0, (nowMs - state.timerStartedAt) / 3_600_000);
+    }
+    const totalAccumulated = Math.round(logged * 100) / 100;
+    const reportHours = Math.floor(totalAccumulated);
+    const remainder = Math.round((totalAccumulated - reportHours) * 100) / 100;
+    return {
+      loggedHours: totalAccumulated,
+      rolloverFromPrev: 0,
+      totalAccumulated,
+      reportHours,
+      remainder,
+    };
+  }
+
+  const firstMonthKey = dates[0].slice(0, 7);
+
+  // Generate chronological list of month keys from firstMonthKey to targetMonthKey
+  const monthKeys: string[] = [];
+  let current = parseMonthKey(firstMonthKey);
+  const target = parseMonthKey(targetMonthKey);
+
+  while (current <= target) {
+    monthKeys.push(monthKeyOf(current));
+    current = new Date(current.getFullYear(), current.getMonth() + 1, 1);
+  }
+
+  let rollover = 0;
+  let loggedHours = 0;
+  let totalAccumulated = 0;
+  let reportHours = 0;
+  let remainder = 0;
+
+  for (const mk of monthKeys) {
+    // Calculate raw logged hours for this month
+    let rawSum = 0;
+    for (const [key, hours] of Object.entries(state.dailyLogs)) {
+      if (key.slice(0, 7) === mk) rawSum += hours;
+    }
+    if (mk === currentMonthKey() && state.timerStartedAt) {
+      rawSum += Math.max(0, (nowMs - state.timerStartedAt) / 3_600_000);
+    }
+    rawSum = Math.round(rawSum * 100) / 100;
+
+    loggedHours = rawSum;
+    totalAccumulated = Math.round((rawSum + rollover) * 100) / 100;
+    reportHours = Math.floor(totalAccumulated);
+    remainder = Math.round((totalAccumulated - reportHours) * 100) / 100;
+
+    // The remainder carries to the next month
+    rollover = remainder;
+  }
+
+  return {
+    loggedHours,
+    rolloverFromPrev: Math.round((totalAccumulated - loggedHours) * 100) / 100,
+    totalAccumulated,
+    reportHours,
+    remainder,
+  };
 }
 
 export function currentMonthHours(state: AppState, nowMs: number = Date.now()): number {
@@ -172,10 +279,12 @@ export function historyMonths(state: AppState, locale: string = 'en-US', maxMont
   for (let offset = -1; offset >= -maxMonths; offset--) {
     const anchor = monthByOffset(offset);
     const monthKey = monthKeyOf(anchor);
-    const hours = monthHoursFor(state, monthKey);
+    const calc = calculateReportHours(state, monthKey);
+    const hours = calc.reportHours;
     const studies = studiesForMonth(state, monthKey);
     const hasParticipationRecord = monthKey in state.monthlyParticipation;
-    if (hours === 0 && studies === 0 && !hasParticipationRecord) continue;
+    const rawHours = monthHoursFor(state, monthKey);
+    if (rawHours === 0 && studies === 0 && !hasParticipationRecord) continue;
     out.push({
       monthKey,
       label: anchor.toLocaleDateString(locale, { month: 'long', year: 'numeric' }),
