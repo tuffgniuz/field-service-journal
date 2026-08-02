@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import { useApp } from '../../store/app-context';
 import { themeFor } from '../../theme/theme';
 import { KeyboardAvoidingScrollView } from '../../components/layout/keyboard-avoiding-scroll-view';
@@ -43,15 +43,15 @@ export function ProfileScreen({ navigation }: { navigation: TabScreenNavProp<'Pr
       : t('profile.auxPioneerSpecificMonths')
     : null;
 
-  const getProgressMessage = (remaining: number, target: number) => {
-    if (remaining <= 0) return t('profile.progressReached');
+  const getProgressKey = (remaining: number, target: number) => {
+    if (remaining <= 0) return 'profile.progressReached';
     const logged = target - remaining;
     const ratio = logged / target;
 
-    if (ratio === 0) return t('profile.progressNotStarted');
-    if (ratio < 0.5) return t('profile.progressStarted', { count: remaining });
-    if (ratio < 0.9) return t('profile.progressHalfway', { count: remaining });
-    return t('profile.progressAlmost', { count: remaining });
+    if (ratio === 0) return 'profile.progressNotStarted';
+    if (ratio < 0.5) return 'profile.progressStarted';
+    if (ratio < 0.9) return 'profile.progressHalfway';
+    return 'profile.progressAlmost';
   };
 
   const onPickAvatar = async () => {
@@ -202,7 +202,13 @@ export function ProfileScreen({ navigation }: { navigation: TabScreenNavProp<'Pr
             </View>
             <View style={styles.goalSummaryRow}>
               <Text style={[styles.goalSummary, { color: theme.text }]}>
-                {getProgressMessage(goal.remainingHours, goal.targetHours)}
+                <Trans
+                  i18nKey={getProgressKey(goal.remainingHours, goal.targetHours)}
+                  values={{ count: goal.remainingHours }}
+                  components={{
+                    highlight: <Text style={{ color: theme.gold, fontWeight: '600' }} />,
+                  }}
+                />
               </Text>
               {auxProgress ? (
                 <Pressable
@@ -307,7 +313,7 @@ const styles = StyleSheet.create({
   progressTrack: { height: 8, borderRadius: 4, overflow: 'hidden', marginBottom: 10 },
   progressFill: { height: '100%', borderRadius: 4 },
   goalSummaryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  goalSummary: { fontSize: 13.5, fontWeight: '600', flex: 1, marginRight: 12 },
+  goalSummary: { fontSize: 13.5, fontWeight: '500', flex: 1, marginRight: 12 },
   goalCaption: { fontSize: 12, marginTop: 4 },
   statsRow: {
     flexDirection: 'row',
