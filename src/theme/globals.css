@@ -17,13 +17,13 @@
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --color-bg: #0D0D0D;
+      --color-bg: #19181C;
       --color-pageBg: #050505;
-      --color-card: #1A1A1C;
+      --color-card: #201E22;
       --color-text: #F5F5F3;
       --color-secondaryText: #9A9A9E;
       --color-border: rgba(255,255,255,0.10);
-      --color-accent: #33456E;
+      --color-accent: #4A6B8A;
       --color-accentText: #F5F5F3;
       --color-gold: #C7A06B;
       --color-danger: #E0685C;

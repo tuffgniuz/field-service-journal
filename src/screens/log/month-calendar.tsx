@@ -12,7 +12,7 @@ interface DayCell {
 
 /**
  * A traditional numbered month-calendar grid (as opposed to MonthChart's bar
- * chart or MonthHeatmap's color-intensity cells): each day shows its number,
+ * chart or the Profile screen's year-heatmap dots): each day shows its number,
  * a small dot if any hours were logged that day, and today gets a rounded
  * outline. Tapping any day opens manual entry for that date directly — no
  * intermediate selection/popover step.

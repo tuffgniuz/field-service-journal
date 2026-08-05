@@ -1,9 +1,11 @@
-import type { AppState, Contact, ContactStatus } from './types';
+import type { ActivityType, AppState, Contact, ContactStatus } from './types';
 import {
   currentMonthKey,
   currentServiceYearLabel,
+  dateKey,
   daysInMonth,
   daysSince,
+  monthAbbrevLabel,
   monthByOffset,
   monthKeyOf,
   nextMonthKey,
@@ -12,6 +14,7 @@ import {
   serviceYearRange,
   todayKey,
 } from '../utils/dates';
+import { parseTimeToMinutes, recentActivityOccurrences } from '../utils/schedule';
 
 /**
  * The month the Report screen should show and report on. Normally the current
@@ -202,6 +205,102 @@ export function recentVisits(contacts: Contact[], limit: number): RecentVisit[] 
   return all.slice(0, limit);
 }
 
+export type RecentActivityKind = ActivityType | 'meeting' | 'hours';
+
+export interface RecentActivityEntry {
+  id: string;
+  kind: RecentActivityKind;
+  /** Set for visits and contact-linked scheduled activities (Bible study / return visit), null otherwise. */
+  contactName: string | null;
+  /** "YYYY-MM-DD", or an ISO timestamp for a visit logged today. */
+  date: string;
+  durationMinutes: number | null;
+  /** Key into `ACTIVITY_COLORS` (utils/schedule.ts), or null for no color. */
+  color: string | null;
+}
+
+/**
+ * A merged, most-recent-first feed of things the user actually did — as
+ * opposed to the Schedule tab, which only shows planned/upcoming activity.
+ * Pulled from logged visits, meeting-for-field-service attendance marks, and
+ * past occurrences of every scheduled activity (Bible study, return visit,
+ * field service, cart/street witnessing, other) — every type, since a
+ * scheduled activity is proof of what happened regardless of whether it also
+ * has a matching Visit record.
+ *
+ * Plain logged hours (the Log tab's +/- stepper and timer) fill in as a
+ * generic "Field service hours" entry only on days that have no
+ * visit/meeting/activity of their own — once a specific activity explains a
+ * day's hours, the generic entry would just be a redundant duplicate of it.
+ */
+export function recentActivityEntries(state: AppState, limit: number, nowMs: number = Date.now()): RecentActivityEntry[] {
+  const entries: RecentActivityEntry[] = [];
+  const explainedDates = new Set<string>();
+  const todayKeyStr = dateKey(new Date(nowMs));
+  const markExplained = (date: string) => explainedDates.add(dateKey(parseDateKey(date)));
+
+  for (const c of state.contacts) {
+    for (const v of c.visits) {
+      entries.push({
+        id: `visit-${v.id}`,
+        kind: c.status,
+        contactName: c.name,
+        date: v.date,
+        durationMinutes: null,
+        color: null,
+      });
+      markExplained(v.date);
+    }
+  }
+
+  for (const [dk, attended] of Object.entries(state.meetingAttendance)) {
+    if (!attended || dk > todayKeyStr) continue;
+    entries.push({
+      id: `meeting-${dk}`,
+      kind: 'meeting',
+      contactName: null,
+      date: dk,
+      durationMinutes: null,
+      color: state.meetingColor,
+    });
+    markExplained(dk);
+  }
+
+  for (const activity of state.scheduledActivities) {
+    const durationMinutes =
+      activity.endTime && activity.time
+        ? Math.max(0, parseTimeToMinutes(activity.endTime) - parseTimeToMinutes(activity.time))
+        : null;
+    const contactName = activity.contactId ? state.contacts.find((c) => c.id === activity.contactId)?.name ?? null : null;
+    for (const occurrenceDate of recentActivityOccurrences(activity, todayKeyStr)) {
+      entries.push({
+        id: `activity-${activity.id}-${occurrenceDate}`,
+        kind: activity.type,
+        contactName,
+        date: occurrenceDate,
+        durationMinutes,
+        color: activity.color,
+      });
+      markExplained(occurrenceDate);
+    }
+  }
+
+  for (const [dk, hours] of Object.entries(state.dailyLogs)) {
+    if (!hours || hours <= 0 || explainedDates.has(dk)) continue;
+    entries.push({
+      id: `hours-${dk}`,
+      kind: 'hours',
+      contactName: null,
+      date: dk,
+      durationMinutes: Math.round(hours * 60),
+      color: null,
+    });
+  }
+
+  entries.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+  return entries.slice(0, limit);
+}
+
 export interface ChartDay {
   day: number;
   hours: number;
@@ -294,4 +393,70 @@ export function historyMonths(state: AppState, locale: string = 'en-US', maxMont
     });
   }
   return out;
+}
+
+export interface ContributionDay {
+  dateKey: string;
+  hours: number;
+  isToday: boolean;
+  /** False for the padding days before Sep 1 / after Aug 31 needed to complete the first/last week column. */
+  inRange: boolean;
+}
+
+export interface ContributionWeek {
+  /** Always 7 entries, Monday through Sunday. */
+  days: ContributionDay[];
+  /** Set on the week column containing the 1st of a month, so the label can be drawn above that column — null otherwise. */
+  monthLabel: string | null;
+  isCurrentMonth: boolean;
+}
+
+/**
+ * A continuous Monday-Sunday week grid spanning the given service year
+ * (Sep 1 - Aug 31), GitHub-contributions-style — used by the Profile
+ * screen's horizontally scrollable heat map instead of 12 separate
+ * per-month grids. Padded at both ends to whole weeks.
+ */
+export function serviceYearContributionWeeks(
+  state: AppState,
+  label: number,
+  locale: string = 'en-US',
+  nowMs: number = Date.now()
+): ContributionWeek[] {
+  const { start, end } = serviceYearRange(label);
+  const today = todayKey();
+  const thisMonthKey = currentMonthKey();
+
+  const gridStart = new Date(start);
+  gridStart.setDate(gridStart.getDate() - ((gridStart.getDay() + 6) % 7));
+
+  const lastDay = new Date(end);
+  lastDay.setDate(lastDay.getDate() - 1);
+  const gridEnd = new Date(lastDay);
+  gridEnd.setDate(gridEnd.getDate() + (6 - ((gridEnd.getDay() + 6) % 7)));
+
+  const weeks: ContributionWeek[] = [];
+  const cursor = new Date(gridStart);
+  while (cursor <= gridEnd) {
+    const days: ContributionDay[] = [];
+    let monthLabel: string | null = null;
+    let isCurrentMonth = false;
+    for (let i = 0; i < 7; i++) {
+      const inRange = cursor >= start && cursor < end;
+      const key = dateKey(cursor);
+      let hours = inRange ? state.dailyLogs[key] || 0 : 0;
+      const isToday = inRange && key === today;
+      if (isToday && state.timerStartedAt) {
+        hours += Math.max(0, (nowMs - state.timerStartedAt) / 3_600_000);
+      }
+      if (inRange && cursor.getDate() === 1) {
+        monthLabel = monthAbbrevLabel(cursor, locale);
+        isCurrentMonth = monthKeyOf(cursor) === thisMonthKey;
+      }
+      days.push({ dateKey: key, hours: Math.round(hours * 100) / 100, isToday, inRange });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    weeks.push({ days, monthLabel, isCurrentMonth });
+  }
+  return weeks;
 }

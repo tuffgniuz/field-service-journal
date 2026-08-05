@@ -3,11 +3,14 @@ import { useColorScheme } from 'react-native';
 import * as Localization from 'expo-localization';
 import i18next from '../i18n';
 import type {
+  ActivityType,
   AppState,
   BaseRole,
   Contact,
   ContactStatus,
   LanguagePreference,
+  MeetingScheduleDay,
+  RecurringRule,
   ReportTone,
   RuntimeState,
   ThemePreference,
@@ -57,6 +60,19 @@ interface ContactDraft {
   address?: string;
 }
 
+interface ActivityDraft {
+  type: ActivityType;
+  date: string;
+  time: string;
+  endTime?: string;
+  location: string;
+  contactId: string | null;
+  color: string | null;
+  partners: string;
+  recurring: RecurringRule;
+  notes: string;
+}
+
 interface AppActions {
   setName: (name: string) => void;
   setAvatarUri: (uri: string) => void;
@@ -92,6 +108,21 @@ interface AppActions {
   saveVisit: (contactId: string, visit: VisitDraft, editingVisitId?: string | null) => void;
   deleteVisit: (contactId: string, visitId: string) => void;
   addHours: (dateKey: string, deltaHours: number) => void;
+  addActivity: (draft: ActivityDraft) => string;
+  updateActivity: (activityId: string, draft: ActivityDraft) => void;
+  deleteActivity: (activityId: string) => void;
+  /** Replaces the full 7-day recurring meeting-for-field-service template. */
+  setMeetingSchedule: (days: MeetingScheduleDay[]) => void;
+  /** Sets or clears the one-off meeting-for-field-service location for a specific "YYYY-MM-DD". */
+  setMeetingLocationOverride: (dateKey: string, location: string) => void;
+  /** Replaces all one-off meeting-for-field-service location overrides. */
+  setMeetingLocationOverrides: (overrides: Record<string, string>) => void;
+  /** Replaces all one-off meeting-for-field-service conductor names. */
+  setMeetingConductorOverrides: (overrides: Record<string, string>) => void;
+  /** Toggles personal attendance at the meeting for field service on the given "YYYY-MM-DD". */
+  toggleMeetingAttendance: (dateKey: string) => void;
+  /** Sets the meeting-for-field-service card's color — a key into `ACTIVITY_COLORS`, or null for the default uncolored card. */
+  setMeetingColor: (color: string | null) => void;
   startTimer: () => void;
   stopTimer: () => void;
   completeOnboarding: () => void;
@@ -133,6 +164,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = useColorScheme();
   // Subscribes to live OS locale changes, mirroring the appearance pattern above.
   const systemLocales = Localization.useLocales();
+  const systemCalendars = Localization.useCalendars();
 
   useEffect(() => {
     configureNotificationHandler();
@@ -335,6 +367,75 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           return { ...s, dailyLogs: { ...s.dailyLogs, [dateKey]: next } };
         }),
 
+      addActivity: (draft) => {
+        const id = 'a' + Date.now();
+        const now = new Date().toISOString();
+        vibrate(20);
+        setState((s) => ({
+          ...s,
+          scheduledActivities: [
+            ...s.scheduledActivities,
+            { id, ...draft, createdAt: now, updatedAt: now },
+          ],
+        }));
+        return id;
+      },
+
+      updateActivity: (activityId, draft) =>
+        setState((s) => ({
+          ...s,
+          scheduledActivities: s.scheduledActivities.map((a) =>
+            a.id === activityId ? { ...a, ...draft, updatedAt: new Date().toISOString() } : a
+          ),
+        })),
+
+      deleteActivity: (activityId) => {
+        vibrate(20);
+        setState((s) => ({
+          ...s,
+          scheduledActivities: s.scheduledActivities.filter((a) => a.id !== activityId),
+        }));
+      },
+
+      setMeetingSchedule: (days) => setState((s) => ({ ...s, meetingSchedule: days })),
+
+      setMeetingLocationOverride: (dateKey, location) =>
+        setState((s) => {
+          const next = { ...s.meetingLocationOverrides };
+          const trimmed = location.trim();
+          if (trimmed) next[dateKey] = trimmed;
+          else delete next[dateKey];
+          return { ...s, meetingLocationOverrides: next };
+        }),
+
+      setMeetingLocationOverrides: (overrides) =>
+        setState((s) => ({
+          ...s,
+          meetingLocationOverrides: Object.fromEntries(
+            Object.entries(overrides)
+              .map(([key, value]) => [key, value.trim()])
+              .filter((entry): entry is [string, string] => Boolean(entry[1]))
+          ),
+        })),
+
+      setMeetingConductorOverrides: (overrides) =>
+        setState((s) => ({
+          ...s,
+          meetingConductorOverrides: Object.fromEntries(
+            Object.entries(overrides)
+              .map(([key, value]) => [key, value.trim()])
+              .filter((entry): entry is [string, string] => Boolean(entry[1]))
+          ),
+        })),
+
+      toggleMeetingAttendance: (dateKey) =>
+        setState((s) => ({
+          ...s,
+          meetingAttendance: { ...s.meetingAttendance, [dateKey]: !s.meetingAttendance[dateKey] },
+        })),
+
+      setMeetingColor: (color) => setState((s) => ({ ...s, meetingColor: color })),
+
       startTimer: () => {
         vibrate(20);
         setState((s) => ({ ...s, timerStartedAt: Date.now() }));
@@ -410,10 +511,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const isDark = state.themePreference === 'system' ? systemScheme === 'dark' : state.themePreference === 'dark';
   const language =
     state.languagePreference === 'system' ? pickSupportedLanguage(systemLocales) : state.languagePreference;
+  const uses24HourClock = systemCalendars[0]?.uses24hourClock ?? null;
   const effectiveRole = resolveEffectiveRole(state.role, state.auxPioneerSchedule, currentMonthKey());
   const runtimeState: RuntimeState = useMemo(
-    () => ({ ...state, darkMode: isDark, language, effectiveRole }),
-    [state, isDark, language, effectiveRole]
+    () => ({ ...state, darkMode: isDark, language, effectiveRole, uses24HourClock }),
+    [state, isDark, language, effectiveRole, uses24HourClock]
   );
   const value = useMemo(() => ({ state: runtimeState, ready, actions }), [runtimeState, ready, actions]);
 

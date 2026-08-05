@@ -1,4 +1,8 @@
-import type { AppState } from './types';
+import type { AppState, MeetingScheduleDay } from './types';
+
+function defaultMeetingSchedule(): MeetingScheduleDay[] {
+  return Array.from({ length: 7 }, (_, dayOfWeek) => ({ dayOfWeek, enabled: false, time: '', location: '' }));
+}
 
 export function defaultState(): AppState {
   return {
@@ -21,5 +25,11 @@ export function defaultState(): AppState {
     serviceYearStartingHours: 0,
     serviceYearStartingHoursYear: null,
     onboardingDone: false,
+    scheduledActivities: [],
+    meetingSchedule: defaultMeetingSchedule(),
+    meetingLocationOverrides: {},
+    meetingConductorOverrides: {},
+    meetingAttendance: {},
+    meetingColor: null,
   };
 }

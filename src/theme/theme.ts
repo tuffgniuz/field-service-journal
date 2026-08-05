@@ -29,15 +29,15 @@ export const lightTheme: Theme = {
 };
 
 export const darkTheme: Theme = {
-  bg: '#0D0D0D',
+  bg: '#19181C',
   pageBg: '#050505',
-  card: '#1A1A1C',
+  card: '#201E22',
   text: '#F5F5F3',
   secondaryText: '#9A9A9E',
   border: 'rgba(255,255,255,0.10)',
-  accent: '#33456E',
+  accent: '#4A6B8A',
   accentText: '#F5F5F3',
-  accentShadow: 'rgba(51,69,110,0.4)',
+  accentShadow: 'rgba(74,107,138,0.4)',
   gold: '#C7A06B',
   danger: '#E0685C',
   dark: true,

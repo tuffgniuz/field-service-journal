@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { FloatingTabBar } from './floating-tab-bar';
 import { LogScreen } from '../screens/log/log-screen';
 import { StudiesListScreen } from '../screens/studies/studies-list-screen';
+import { ScheduleScreen } from '../screens/schedule/schedule-screen';
 import { ReportScreen } from '../screens/report/report-screen';
 import { ProfileScreen } from '../screens/profile/profile-screen';
 import type { TabParamList } from './types';
@@ -20,6 +21,7 @@ export function MainTabs() {
     >
       <Tab.Screen name="Log" component={LogScreen} options={{ title: t('tabs.log') }} />
       <Tab.Screen name="Studies" component={StudiesListScreen} options={{ title: t('tabs.studies') }} />
+      <Tab.Screen name="Schedule" component={ScheduleScreen} options={{ title: t('tabs.schedule') }} />
       <Tab.Screen name="Report" component={ReportScreen} options={{ title: t('tabs.report') }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: t('tabs.profile') }} />
     </Tab.Navigator>

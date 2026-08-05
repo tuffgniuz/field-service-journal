@@ -26,6 +26,57 @@ export interface Visit {
   covered: string;
 }
 
+/**
+ * "Meeting for field service" is intentionally not a member of this union —
+ * it's handled separately via `MeetingScheduleDay` (the recurring weekly
+ * template) plus per-date attendance, not as a plannable activity type.
+ */
+export type ActivityType = 'field_service' | 'bible_study' | 'return_visit' | 'cart' | 'street' | 'other';
+
+export type RecurringRule = 'none' | 'weekly' | 'biweekly' | 'monthly';
+
+/**
+ * A planned (not logged) field service activity. Purely for the Schedule
+ * tab — never counts toward `dailyLogs` hours. `recurring` activities are
+ * stored once at their first occurrence (`date`) and expanded on the fly for
+ * later weeks (see `activityOccursOnDate` in utils/schedule.ts) rather than
+ * being duplicated into one row per occurrence.
+ */
+export interface ScheduledActivity {
+  id: string;
+  type: ActivityType;
+  /** "YYYY-MM-DD" — the first/anchor occurrence. */
+  date: string;
+  /** Free text, e.g. "9:00 AM" — deliberately not a structured time to keep entry fast. */
+  time: string;
+  /** Optional "HH:mm" end time selected via the native time picker. Empty/undefined means no end time. */
+  endTime?: string;
+  location: string;
+  contactId: string | null;
+  /** Key into `ACTIVITY_COLORS` (utils/schedule.ts), or null for the default uncolored card. */
+  color: string | null;
+  /** Free text, e.g. "David, Ahmad" — not a contact reference. */
+  partners: string;
+  recurring: RecurringRule;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * One entry per weekday (0=Sunday..6=Saturday) describing the congregation's
+ * recurring "meeting for field service" — separate from `ScheduledActivity`
+ * since it's a single recurring weekly template rather than something a user
+ * plans per-instance.
+ */
+export interface MeetingScheduleDay {
+  dayOfWeek: number;
+  enabled: boolean;
+  time: string;
+  /** Empty string means the meeting place varies week to week. */
+  location: string;
+}
+
 export interface Contact {
   id: string;
   name: string;
@@ -75,6 +126,18 @@ export interface AppState {
   /** The service-year label (see serviceYearLabel()) `serviceYearStartingHours` was entered for. Once a new service year begins this no longer matches, so the offset stops applying. */
   serviceYearStartingHoursYear: number | null;
   onboardingDone: boolean;
+  /** Planned (not logged) field service activities — see `ScheduledActivity`. */
+  scheduledActivities: ScheduledActivity[];
+  /** Always exactly 7 entries, one per weekday (0=Sunday..6=Saturday). */
+  meetingSchedule: MeetingScheduleDay[];
+  /** One-off meeting-for-field-service location overrides, keyed by "YYYY-MM-DD". */
+  meetingLocationOverrides: Record<string, string>;
+  /** One-off meeting-for-field-service conductor names, keyed by "YYYY-MM-DD". Only set for dates with a location override. */
+  meetingConductorOverrides: Record<string, string>;
+  /** Personal attendance at the recurring meeting for field service, keyed by "YYYY-MM-DD". */
+  meetingAttendance: Record<string, boolean>;
+  /** Key into `ACTIVITY_COLORS` (utils/schedule.ts) for the meeting-for-field-service card, or null for the default uncolored card. */
+  meetingColor: string | null;
 }
 
 /**
@@ -85,6 +148,11 @@ export interface AppState {
  * `resolveEffectiveRole`) and is what goal/report logic should key off of —
  * `role` alone is never 'aux_pioneer'.
  */
-export type RuntimeState = AppState & { darkMode: boolean; language: AppLanguage; effectiveRole: Role };
+export type RuntimeState = AppState & {
+  darkMode: boolean;
+  language: AppLanguage;
+  effectiveRole: Role;
+  uses24HourClock: boolean | null;
+};
 
 export const STATUS_ORDER: ContactStatus[] = ['return_visit', 'bible_study'];

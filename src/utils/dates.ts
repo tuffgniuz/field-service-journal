@@ -56,6 +56,12 @@ export function monthShortLabel(d: Date, locale: string = 'en-US'): string {
   return d.toLocaleDateString(locale, { month: 'short', year: 'numeric' });
 }
 
+/** Locale-correct abbreviated month name without a year, e.g. "Aug". */
+export function monthAbbrevLabel(d: Date, locale: string = 'en-US'): string {
+  const label = d.toLocaleDateString(locale, { month: 'short' });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 /** Locale-correct narrow weekday initials (Sun...Sat), e.g. S M T W T F S in English, Z M D W D V Z in Dutch. */
 export function weekdayLabels(locale: string): string[] {
   const fmt = new Intl.DateTimeFormat(locale, { weekday: 'narrow' });

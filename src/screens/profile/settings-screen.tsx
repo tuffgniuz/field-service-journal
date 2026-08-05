@@ -8,21 +8,18 @@ import { themeFor } from '../../theme/theme';
 import { KeyboardAvoidingScrollView } from '../../components/layout/keyboard-avoiding-scroll-view';
 import { LabeledInput } from '../../components/inputs/field';
 import { SegmentedControl } from '../../components/inputs/segmented-control';
-import { useRoleMeta } from '../../hooks/use-role-meta';
 import { LANGUAGE_NATIVE_NAMES } from '../../i18n/language';
 import { currentServiceYearLabel } from '../../utils/dates';
-import { type BaseRole, type LanguagePreference, type ThemePreference } from '../../store/types';
+import { type LanguagePreference, type ThemePreference } from '../../store/types';
 import { exportAppData } from '../../utils/export-data';
 import type { RootNavProp } from '../../navigation/types';
 
-const ROLE_ORDER: BaseRole[] = ['publisher', 'regular_pioneer', 'special_pioneer'];
 const LANGUAGE_ORDER: LanguagePreference[] = ['system', 'en', 'nl', 'id'];
 
 export function SettingsScreen({ navigation }: { navigation: RootNavProp }) {
   const { state, actions } = useApp();
   const { showToast } = useUi();
   const { t } = useTranslation();
-  const roleMeta = useRoleMeta();
   const theme = themeFor(state.darkMode);
   const insets = useSafeAreaInsets();
 
@@ -84,25 +81,6 @@ export function SettingsScreen({ navigation }: { navigation: RootNavProp }) {
           theme={theme}
           fontSize={14.5}
         />
-      </View>
-
-      <Text style={[styles.sectionLabel, { color: theme.secondaryText }]}>{t('settings.role')}</Text>
-      <View style={styles.pickerList}>
-        {ROLE_ORDER.map((key) => {
-          const selected = state.role === key;
-          return (
-            <Pressable
-              key={key}
-              onPress={() => actions.setRole(key)}
-              style={[styles.pickerRow, { borderColor: selected ? theme.accent : theme.border }]}
-            >
-              <Text style={{ color: theme.text, fontSize: 14.5, fontWeight: selected ? '700' : '400' }}>
-                {roleMeta[key]}
-              </Text>
-              {selected ? <View style={[styles.pickerDot, { backgroundColor: theme.accent }]} /> : null}
-            </Pressable>
-          );
-        })}
       </View>
 
       {state.role === 'regular_pioneer' ? (

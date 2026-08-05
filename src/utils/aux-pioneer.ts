@@ -1,5 +1,5 @@
 import type { AuxPioneerSchedule, BaseRole, Role } from '../store/types';
-import { monthByOffset, monthKeyOf } from './dates';
+import { currentServiceYearLabel, monthByOffset, monthKeyOf, serviceYearRange } from './dates';
 
 /** How many months ahead (including the current one) can be picked in the specific-months list. */
 export const AUX_PIONEER_MONTH_WINDOW = 12;
@@ -18,6 +18,16 @@ export function auxPioneerMonthOptions(): string[] {
   const months: string[] = [];
   for (let i = 0; i < AUX_PIONEER_MONTH_WINDOW; i++) {
     months.push(monthKeyOf(monthByOffset(i)));
+  }
+  return months;
+}
+
+/** "YYYY-MM" keys for all 12 months of the given service year (Sep through Aug), in that order. */
+export function serviceYearMonthOptions(label: number = currentServiceYearLabel()): string[] {
+  const { start } = serviceYearRange(label);
+  const months: string[] = [];
+  for (let i = 0; i < 12; i++) {
+    months.push(monthKeyOf(new Date(start.getFullYear(), start.getMonth() + i, 1)));
   }
   return months;
 }

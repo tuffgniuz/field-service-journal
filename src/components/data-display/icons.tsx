@@ -8,10 +8,18 @@ export function TabIcon({
   color,
   size = 22,
 }: {
-  name: 'log' | 'studies' | 'report' | 'profile';
+  name: 'log' | 'studies' | 'schedule' | 'report' | 'profile';
   color: string;
   size?: number;
 }) {
+  if (name === 'schedule') {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24" {...common} stroke={color}>
+        <Path d="M4 5h16a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" />
+        <Path d="M16 3v4M8 3v4M3 10h18" />
+      </Svg>
+    );
+  }
   if (name === 'log') {
     return (
       <Svg width={size} height={size} viewBox="0 0 24 24" {...common} stroke={color}>
@@ -86,6 +94,17 @@ export function ClockIcon({ color, size = 20 }: { color: string; size?: number }
   );
 }
 
+export function PartnerIcon({ color, size = 16 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" {...common} stroke={color}>
+      <Circle cx={9} cy={8.5} r={2.6} />
+      <Path d="M4.5 18.5c0-3.2 1.9-5 4.5-5s4.5 1.8 4.5 5" />
+      <Circle cx={16.2} cy={9.2} r={2.1} opacity={0.65} />
+      <Path d="M13.7 18.5c0-2.4 1.2-3.9 3.2-3.9 1.6 0 2.8 1 3.3 2.7" opacity={0.65} />
+    </Svg>
+  );
+}
+
 export type ShareChannel = 'whatsapp' | 'telegram' | 'sms' | 'email';
 
 export function ShareIcon({ name, color, size = 20 }: { name: ShareChannel; color: string; size?: number }) {
@@ -133,6 +152,74 @@ export function TrashIcon({ color, size = 18 }: { color: string; size?: number }
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" {...common} stroke={color}>
       <Path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    </Svg>
+  );
+}
+
+export function CheckIcon({ color, size = 14 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" {...common} stroke={color} strokeWidth={2.4}>
+      <Path d="M5 13l4 4L19 7" />
+    </Svg>
+  );
+}
+
+export function ActivityTypeIcon({
+  type,
+  color,
+  size = 16,
+}: {
+  type: 'field_service' | 'bible_study' | 'return_visit' | 'cart' | 'street' | 'other';
+  color: string;
+  size?: number;
+}) {
+  if (type === 'field_service') {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24" {...common} stroke={color}>
+        <Path d="M5 6h14a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Z" />
+        <Path d="M8 4v4M16 4v4M4 10h16" />
+        <Path d="M8 14h3M13 14h3M8 17h5" />
+      </Svg>
+    );
+  }
+  if (type === 'bible_study') {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24" {...common} stroke={color}>
+        <Path d="M12 6.5C10 5 7 4.7 4 5.4v13c3-0.7 6-0.4 8 1.1 2-1.5 5-1.8 8-1.1v-13c-3-0.7-6-0.4-8 1.1Z" />
+        <Path d="M12 6.5v13" />
+      </Svg>
+    );
+  }
+  if (type === 'return_visit') {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24" {...common} stroke={color}>
+        <Path d="M6 3.5h9a1 1 0 0 1 1 1V20H6a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z" />
+        <Circle cx={12.5} cy={12} r={0.8} fill={color} />
+      </Svg>
+    );
+  }
+  if (type === 'cart') {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24" {...common} stroke={color}>
+        <Path d="M3 4h2l2.4 12.2a2 2 0 0 0 2 1.8h7.2a2 2 0 0 0 2-1.6L20.5 9H6" />
+        <Circle cx={10} cy={20} r={1.3} />
+        <Circle cx={17} cy={20} r={1.3} />
+      </Svg>
+    );
+  }
+  if (type === 'street') {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24" {...common} stroke={color}>
+        <Path d="M6 21V3" />
+        <Path d="M6 5h12l-2.5 3.5L18 12H6" strokeLinejoin="round" />
+      </Svg>
+    );
+  }
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" {...common} stroke={color}>
+      <Circle cx={6} cy={12} r={1.3} fill={color} />
+      <Circle cx={12} cy={12} r={1.3} fill={color} />
+      <Circle cx={18} cy={12} r={1.3} fill={color} />
     </Svg>
   );
 }

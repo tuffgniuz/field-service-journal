@@ -12,6 +12,8 @@ import { useStatusMeta } from '../../hooks/use-status-meta';
 import { statusColor } from '../../utils/status-color';
 import { type Contact } from '../../store/types';
 import { formatShortDate, formatRelativeTime } from '../../utils/dates';
+import { ACTIVITY_TYPE_KEYS, upcomingActivitiesForContact } from '../../utils/schedule';
+import { formatTimeLabel } from '../../utils/time';
 import { INTL_LOCALE_TAGS } from '../../i18n/language';
 import type { RootNavProp, RootStackParamList } from '../../navigation/types';
 
@@ -36,6 +38,10 @@ export function ContactDetailScreen({
     [contact]
   );
   const lastVisit = contact && contact.visits.length ? contact.visits[contact.visits.length - 1] : null;
+  const upcomingActivities = useMemo(
+    () => (contact ? upcomingActivitiesForContact(state.scheduledActivities, contact.id) : []),
+    [contact, state.scheduledActivities]
+  );
 
   if (!contact) {
     return (
@@ -112,6 +118,40 @@ export function ContactDetailScreen({
         </View>
       </View>
 
+      {upcomingActivities.length > 0 ? (
+        <View style={{ marginBottom: 24 }}>
+          <Text style={[styles.sectionLabel, { color: theme.secondaryText, marginBottom: 14 }]}>
+            {t('contactDetail.scheduledActivities')}
+          </Text>
+          {upcomingActivities.map((a) => (
+            <Pressable
+              key={a.id}
+              onPress={() => navigation.navigate('Tabs', { screen: 'Schedule' })}
+              style={[styles.activityRow, { backgroundColor: theme.card }]}
+            >
+              <Text style={[styles.activityType, { color: theme.text }]} numberOfLines={1}>
+                {t(ACTIVITY_TYPE_KEYS[a.type])}
+              </Text>
+              <Text style={[styles.activityMeta, { color: theme.secondaryText }]} numberOfLines={1}>
+                {formatShortDate(a.occurrenceDate, locale, false)}
+                {a.time
+                  ? ` · ${
+                      a.endTime
+                        ? `${formatTimeLabel(a.time, locale, '', state.uses24HourClock)}-${formatTimeLabel(
+                            a.endTime,
+                            locale,
+                            '',
+                            state.uses24HourClock
+                          )}`
+                        : formatTimeLabel(a.time, locale, '', state.uses24HourClock)
+                    }`
+                  : ''}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+
       {lastVisit ? (
         <>
           <Text style={[styles.sectionLabel, { color: theme.secondaryText, marginBottom: 14 }]}>
@@ -185,4 +225,16 @@ const styles = StyleSheet.create({
   tlCovered: { fontSize: 13, lineHeight: 18 },
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyStateText: { fontSize: 14.5 },
+  activityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 8,
+  },
+  activityType: { fontSize: 14, fontWeight: '600', flexShrink: 1 },
+  activityMeta: { fontSize: 12.5 },
 });
