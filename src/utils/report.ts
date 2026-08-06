@@ -2,7 +2,7 @@ import i18next from '../i18n';
 import { INTL_LOCALE_TAGS } from '../i18n/language';
 import type { AppState, RuntimeState } from '../store/types';
 import { calculateReportHours, monthHoursFor, participatedFor, studiesForMonth } from '../store/selectors';
-import { monthLabel, parseMonthKey } from './dates';
+import { currentMonthKey, monthLabel, parseMonthKey } from './dates';
 import { fmtHours } from './format';
 
 export function isPioneerRole(state: RuntimeState): boolean {
@@ -27,11 +27,24 @@ export function buildReportText(state: RuntimeState, monthKey: string): string {
 
   const hasStudies = studies > 0;
 
+  // Credit hours are only ever folded into `hours` for the current month (see
+  // `creditHoursForCurrentMonth`), so the explanatory note only makes sense then.
+  const creditNote =
+    isPioneer && state.creditHoursEnabled && state.creditHoursAmount > 0 && monthKey === currentMonthKey()
+      ? ' ' +
+        i18next.t('report.creditHoursNote', {
+          hours: fmtHours(state.creditHoursAmount),
+          source: state.creditHoursSource.trim() || i18next.t('report.creditHoursSourceFallback'),
+        })
+      : '';
+
   if (state.reportTone === 'formal') {
     if (isPioneer) {
-      return hasStudies
-        ? i18next.t('report.formalPioneer', { month: monthName, hours: String(hours), studies })
-        : i18next.t('report.formalPioneerNoStudies', { month: monthName, hours: String(hours) });
+      return (
+        (hasStudies
+          ? i18next.t('report.formalPioneer', { month: monthName, hours: String(hours), studies })
+          : i18next.t('report.formalPioneerNoStudies', { month: monthName, hours: String(hours) })) + creditNote
+      );
     }
     const shared = participatedFor(state, monthKey) ? i18next.t('common.yes') : i18next.t('common.no');
     return hasStudies
@@ -40,9 +53,12 @@ export function buildReportText(state: RuntimeState, monthKey: string): string {
   }
 
   if (isPioneer) {
-    return hasStudies
-      ? i18next.t('report.conversationalPioneer', { name, month: monthShort, hours: String(hours), count: studies })
-      : i18next.t('report.conversationalPioneerNoStudies', { name, month: monthShort, hours: String(hours) });
+    return (
+      (hasStudies
+        ? i18next.t('report.conversationalPioneer', { name, month: monthShort, hours: String(hours), count: studies })
+        : i18next.t('report.conversationalPioneerNoStudies', { name, month: monthShort, hours: String(hours) })) +
+      creditNote
+    );
   }
   return hasStudies
     ? i18next.t('report.conversationalPublisher', { name, count: studies })

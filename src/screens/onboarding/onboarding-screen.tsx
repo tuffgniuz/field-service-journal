@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../../store/app-context';
-import { themeFor, onboardingTint } from '../../theme/theme';
+import { themeFor } from '../../theme/theme';
 import { LabeledInput } from '../../components/inputs/field';
 import { PillButton } from '../../components/actions/pill-button';
 import { AuxPioneerFields } from '../../components/inputs/aux-pioneer-fields';
@@ -22,8 +22,6 @@ export function OnboardingScreen() {
   const [step, setStep] = useState(0);
   const primaryLabels = [t('onboarding.primaryGetStarted'), t('onboarding.primaryContinue'), t('onboarding.primaryContinue'), t('onboarding.primaryFinish')];
 
-  const tint = step === 0 ? (state.darkMode ? onboardingTint.dark : onboardingTint.light) : theme.bg;
-
   const next = () => {
     if (step >= TOTAL_STEPS - 1) {
       actions.completeOnboarding();
@@ -34,7 +32,7 @@ export function OnboardingScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.wrap, { backgroundColor: tint }]}
+      style={[styles.wrap, { backgroundColor: theme.bg }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.topRow}>

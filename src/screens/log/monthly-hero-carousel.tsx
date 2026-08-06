@@ -104,7 +104,7 @@ export function MonthlyHeroCarousel({
         <View style={{ width, paddingHorizontal: 24 }}>
           <View style={[styles.card, { backgroundColor: theme.card }]}>
             <View style={styles.headerRow}>
-              <Text style={[styles.monthLabel, { color: theme.secondaryText }]}>{item.label}</Text>
+              <Text style={[styles.monthLabel, { color: theme.secondaryText }]}>{t('log.today')}</Text>
               <Pressable onPress={onAddManually} style={styles.addManuallyBtn} hitSlop={8}>
                 <EditIcon color={theme.accent} size={13} />
                 <Text style={[styles.addManuallyLabel, { color: theme.accent }]}>
@@ -115,15 +115,15 @@ export function MonthlyHeroCarousel({
 
             <View style={styles.statsRow}>
               <Text style={[styles.totalsValue, { color: theme.text }]}>
-                {fmtHours(item.hours)}
+                {fmtHours(todayHours)}
                 <Text style={[styles.totalsUnit, { color: theme.secondaryText }]}>{'\u2009'}h</Text>
               </Text>
               <View style={styles.statsRight}>
                 <Text style={[styles.todayHours, { color: theme.secondaryText }]}>
                   <Text style={{ color: theme.text }}>
-                    {t('log.todayHoursValue', { hours: fmtHours(todayHours) })}
+                    {t('log.todayHoursValue', { hours: fmtHours(item.hours) })}
                   </Text>
-                  {" "}{t('log.todayHoursSuffix')}
+                  {" "}{item.label}
                 </Text>
                 <View style={styles.studiesRow}>
                   <Text style={[styles.studiesCount, { color: theme.secondaryText }]}>

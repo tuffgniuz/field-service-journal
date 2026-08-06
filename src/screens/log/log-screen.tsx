@@ -9,8 +9,11 @@ import { MonthCalendar } from './month-calendar';
 import { ManualEntrySheet } from './manual-entry-sheet';
 import { LogVisitSheet } from './log-visit-sheet';
 import { RecentVisitsCard } from './recent-visits-card';
+import { UpcomingActivitiesCard } from './upcoming-activities-card';
+import { ActivityHoursSheet } from './activity-hours-sheet';
 import { MonthlyHeroCarousel } from './monthly-hero-carousel';
 import { buildChartMonth, liveTodayHours, recentVisits, sortedContacts, studyContacts, type RecentVisit } from '../../store/selectors';
+import { upcomingActivities, type ScheduledActivityOccurrence } from '../../utils/schedule';
 import { dateKey, todayKey } from '../../utils/dates';
 import { INTL_LOCALE_TAGS } from '../../i18n/language';
 import type { TabScreenNavProp } from '../../navigation/types';
@@ -29,6 +32,10 @@ export function LogScreen({ navigation }: { navigation: TabScreenNavProp<'Log'> 
   });
   const [studySheetVisible, setStudySheetVisible] = useState(false);
   const [logVisitSheetVisible, setLogVisitSheetVisible] = useState(false);
+  const [activityHoursSheet, setActivityHoursSheet] = useState<{
+    activity: ScheduledActivityOccurrence;
+    title: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!state.timerStartedAt) return;
@@ -47,6 +54,10 @@ export function LogScreen({ navigation }: { navigation: TabScreenNavProp<'Log'> 
   const todayHours = useMemo(() => liveTodayHours(state, now), [state, now]);
   const chart = useMemo(() => buildChartMonth(state, chartOffset, locale, now), [state, chartOffset, locale, now]);
   const recent = useMemo(() => recentVisits(state.contacts, 8), [state.contacts]);
+  const nextActivities = useMemo(
+    () => upcomingActivities(state.scheduledActivities, 2),
+    [state.scheduledActivities]
+  );
 
   const canSubtract = todayHours > 0;
 
@@ -66,6 +77,18 @@ export function LogScreen({ navigation }: { navigation: TabScreenNavProp<'Log'> 
         />
 
         <View style={styles.container}>
+          <UpcomingActivitiesCard
+            theme={theme}
+            locale={locale}
+            activities={nextActivities}
+            contacts={state.contacts}
+            uses24HourClock={state.uses24HourClock}
+            scheduledActivityHours={state.scheduledActivityHours}
+            onViewSchedule={() => navigation.navigate('Tabs', { screen: 'Schedule' })}
+            onCheckActivity={(activity, title) => setActivityHoursSheet({ activity, title })}
+            onUncheckActivity={(activity) => actions.unconfirmActivityHours(activity.id, activity.occurrenceDate)}
+          />
+
           <RecentVisitsCard
             theme={theme}
             locale={locale}
@@ -116,6 +139,13 @@ export function LogScreen({ navigation }: { navigation: TabScreenNavProp<'Log'> 
         onClose={() => setLogVisitSheetVisible(false)}
         navigation={navigation}
         theme={theme}
+      />
+
+      <ActivityHoursSheet
+        visible={activityHoursSheet !== null}
+        activity={activityHoursSheet?.activity ?? null}
+        activityTitle={activityHoursSheet?.title ?? ''}
+        onClose={() => setActivityHoursSheet(null)}
       />
     </View>
   );

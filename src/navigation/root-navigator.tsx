@@ -2,6 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { MainTabs } from './main-tabs';
 import { ContactDetailScreen } from '../screens/studies/contact-detail-screen';
+import { StudyProgressScreen } from '../screens/studies/study-progress-screen';
 import { AddContactScreen } from '../screens/studies/add-contact-screen';
 import { AddEditVisitScreen } from '../screens/studies/add-edit-visit-screen';
 import { AddActivityScreen } from '../screens/schedule/add-activity-screen';
@@ -20,6 +21,7 @@ export function RootNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Tabs" component={MainTabs} />
       <Stack.Screen name="ContactDetail" component={ContactDetailScreen} options={{ animation: 'fade' }} />
+      <Stack.Screen name="StudyProgress" component={StudyProgressScreen} options={{ animation: 'fade' }} />
       <Stack.Screen name="AddContact" component={AddContactScreen} options={{ animation: 'fade' }} />
       <Stack.Screen name="AddEditVisit" component={AddEditVisitScreen} options={{ animation: 'fade' }} />
       <Stack.Screen name="AddActivity" component={AddActivityScreen} options={{ animation: 'fade' }} />

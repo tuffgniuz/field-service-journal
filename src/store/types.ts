@@ -81,9 +81,12 @@ export interface Contact {
   id: string;
   name: string;
   status: ContactStatus;
+  /** Key into `PUBLICATIONS` (utils/publications.ts), e.g. "lff". Empty string means none selected. */
   publication?: string;
   address?: string;
   visits: Visit[];
+  /** Completed study-item ids for `publication` (see `StudyItem` in utils/publications.ts), e.g. "lesson-12", "review-1". */
+  studyProgress: string[];
 }
 
 /** One entry per calendar day the user logged any hours, keyed by "YYYY-MM-DD" */
@@ -94,6 +97,19 @@ export interface AuxPioneerSchedule {
   ongoing: boolean;
   /** "YYYY-MM" months explicitly opted into auxiliary pioneering. Ignored while `ongoing` is true, but kept around so switching back to "specific months" restores the prior picks. */
   months: string[];
+}
+
+/**
+ * Recurring family Bible study credit — counted as 1 hour/week (4 hours/month)
+ * toward reported hours while `enabled`. Also drives a recurring weekly
+ * `ScheduledActivity` (bible_study type, id-prefixed "family-study-") per
+ * selected day so it shows up on the Schedule tab.
+ */
+export interface FamilyBibleStudySettings {
+  enabled: boolean;
+  contactId: string | null;
+  /** Days of week (0=Sunday..6=Saturday) the study is conducted. */
+  days: number[];
 }
 
 export interface AppState {
@@ -138,6 +154,22 @@ export interface AppState {
   meetingAttendance: Record<string, boolean>;
   /** Key into `ACTIVITY_COLORS` (utils/schedule.ts) for the meeting-for-field-service card, or null for the default uncolored card. */
   meetingColor: string | null;
+  familyBibleStudy: FamilyBibleStudySettings;
+  /** Whether the user reports additional field-service credit hours each month (see `creditHoursAmount`/`creditHoursSource`). */
+  creditHoursEnabled: boolean;
+  /** Extra hours credited toward the monthly report while `creditHoursEnabled`, capped at 55. */
+  creditHoursAmount: number;
+  /** Free-text explanation of where `creditHoursAmount` comes from — included in the report message when `creditHoursEnabled`. */
+  creditHoursSource: string;
+  /**
+   * Hours logged for a scheduled-activity occurrence the user checked off on
+   * the Upcoming Activities card, keyed by "<activityId>_<occurrenceDate>" —
+   * per-occurrence so a single recurring activity can be confirmed
+   * separately each time it comes around. Key presence means the checkbox is
+   * checked; the value is what was added to that date's `dailyLogs`, so
+   * unchecking can subtract the same amount back out.
+   */
+  scheduledActivityHours: Record<string, number>;
 }
 
 /**

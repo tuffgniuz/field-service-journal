@@ -46,8 +46,3 @@ export const darkTheme: Theme = {
 export function themeFor(darkMode: boolean): Theme {
   return darkMode ? darkTheme : lightTheme;
 }
-
-export const onboardingTint = {
-  light: '#F2F0F7',
-  dark: '#12172A',
-};

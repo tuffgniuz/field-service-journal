@@ -7,7 +7,7 @@ import { useApp } from '../../store/app-context';
 import { themeFor } from '../../theme/theme';
 import { KeyboardAvoidingScrollView } from '../../components/layout/keyboard-avoiding-scroll-view';
 import { ContactAvatar } from '../../components/data-display/contact-avatar';
-import { EditIcon } from '../../components/data-display/icons';
+import { BookIcon, ChevronRightIcon, EditIcon } from '../../components/data-display/icons';
 import { useStatusMeta } from '../../hooks/use-status-meta';
 import { statusColor } from '../../utils/status-color';
 import { type Contact } from '../../store/types';
@@ -15,6 +15,7 @@ import { formatShortDate, formatRelativeTime } from '../../utils/dates';
 import { ACTIVITY_TYPE_KEYS, upcomingActivitiesForContact } from '../../utils/schedule';
 import { formatTimeLabel } from '../../utils/time';
 import { INTL_LOCALE_TAGS } from '../../i18n/language';
+import { publicationTitle, studyItemsForPublication, studyProgressSummary } from '../../utils/publications';
 import type { RootNavProp, RootStackParamList } from '../../navigation/types';
 
 export function ContactDetailScreen({
@@ -41,6 +42,14 @@ export function ContactDetailScreen({
   const upcomingActivities = useMemo(
     () => (contact ? upcomingActivitiesForContact(state.scheduledActivities, contact.id) : []),
     [contact, state.scheduledActivities]
+  );
+  const studyItems = useMemo(
+    () => (contact?.publication ? studyItemsForPublication(contact.publication) : []),
+    [contact?.publication]
+  );
+  const studySummary = useMemo(
+    () => studyProgressSummary(studyItems, contact?.studyProgress ?? []),
+    [studyItems, contact?.studyProgress]
   );
 
   if (!contact) {
@@ -99,7 +108,7 @@ export function ContactDetailScreen({
             {t('contactDetail.publication')}
           </Text>
           <Text style={[styles.cardBody, { color: contact.publication ? theme.text : theme.secondaryText }]}>
-            {contact.publication || t('common.na')}
+            {(contact.publication && publicationTitle(contact.publication, state.language)) || t('common.na')}
           </Text>
         </View>
 
@@ -117,6 +126,42 @@ export function ContactDetailScreen({
           </Text>
         </View>
       </View>
+
+      {contact.publication && studyItems.length > 0 ? (
+        <Pressable
+          onPress={() => navigation.navigate('StudyProgress', { contactId: contact.id })}
+          style={[styles.studyCard, { backgroundColor: theme.card }]}
+        >
+          <View style={styles.studyHeaderRow}>
+            <View style={styles.studyHeaderLeft}>
+              <BookIcon color={theme.secondaryText} size={16} />
+              <Text style={[styles.studyTitle, { color: theme.text }]}>
+                {t('contactDetail.studyProgressTitle')}
+              </Text>
+            </View>
+            <ChevronRightIcon color={theme.secondaryText} size={16} />
+          </View>
+          <View style={[styles.progressTrack, { backgroundColor: theme.border }]}>
+            <View
+              style={[
+                styles.progressFill,
+                { width: `${studySummary.percent}%`, backgroundColor: theme.accent },
+              ]}
+            />
+          </View>
+          <View style={styles.studyFooterRow}>
+            <Text style={[styles.studyFooterText, { color: theme.secondaryText }]}>
+              {t('contactDetail.studyProgressPosition', {
+                section: studySummary.currentSection,
+                lesson: studySummary.currentLessonNumber,
+              })}
+            </Text>
+            <Text style={[styles.studyFooterText, { color: theme.secondaryText }]}>
+              {t('contactDetail.studyProgressPercent', { percent: studySummary.percent })}
+            </Text>
+          </View>
+        </Pressable>
+      ) : null}
 
       {upcomingActivities.length > 0 ? (
         <View style={{ marginBottom: 24 }}>
@@ -225,6 +270,14 @@ const styles = StyleSheet.create({
   tlCovered: { fontSize: 13, lineHeight: 18 },
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyStateText: { fontSize: 14.5 },
+  studyCard: { borderRadius: 16, padding: 18, marginBottom: 24 },
+  studyHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  studyHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  studyTitle: { fontSize: 14.5, fontWeight: '700' },
+  progressTrack: { height: 6, borderRadius: 3, overflow: 'hidden' },
+  progressFill: { height: 6, borderRadius: 3 },
+  studyFooterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 },
+  studyFooterText: { fontSize: 12.5, fontWeight: '600' },
   activityRow: {
     flexDirection: 'row',
     alignItems: 'center',

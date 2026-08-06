@@ -62,8 +62,9 @@ export function buildDummySeed(): DummySeed {
       id: `${DUMMY_CONTACT_PREFIX}maria`,
       name: 'Maria Chen',
       status: 'bible_study',
-      publication: 'Enjoy Life Forever!',
+      publication: 'lff',
       address: '',
+      studyProgress: ['lesson-1', 'lesson-2', 'lesson-3', 'lesson-4', 'lesson-5', 'lesson-6', 'lesson-7', 'lesson-8', 'lesson-9', 'lesson-10', 'lesson-11'],
       visits: [
         visit('dv-maria-1', '2025-10-04', 'Introduced the study, set expectations'),
         visit('dv-maria-2', '2025-11-15', 'Chapter 2 — why does God allow suffering'),
@@ -78,8 +79,9 @@ export function buildDummySeed(): DummySeed {
       id: `${DUMMY_CONTACT_PREFIX}david`,
       name: 'David Okafor',
       status: 'bible_study',
-      publication: 'Enjoy Life Forever!',
+      publication: 'lff',
       address: '',
+      studyProgress: ['lesson-1', 'lesson-2', 'lesson-3'],
       visits: [
         visit('dv-david-1', '2025-11-02', "Left a tract on the Bible's view of the future"),
         visit('dv-david-2', '2025-12-20', 'Started the study using the brochure'),
@@ -93,8 +95,9 @@ export function buildDummySeed(): DummySeed {
       id: `${DUMMY_CONTACT_PREFIX}alvarez`,
       name: 'The Alvarez Family',
       status: 'bible_study',
-      publication: 'Good News from God!',
+      publication: '',
       address: 'Apt 3C',
+      studyProgress: [],
       visits: [
         visit('dv-alvarez-1', '2026-01-24', 'Kids asked to keep the picture book'),
         visit('dv-alvarez-2', '2026-03-21', "Talked through the family's questions on prayer"),
@@ -108,6 +111,7 @@ export function buildDummySeed(): DummySeed {
       status: 'return_visit',
       publication: '',
       address: '',
+      studyProgress: [],
       visits: [
         visit('dv-priya-1', '2025-12-06', 'Neighbor mentioned they work night shifts'),
         visit('dv-priya-2', '2026-04-18', "Said she'd be open to a follow-up"),

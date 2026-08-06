@@ -5,6 +5,7 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 export type RootStackParamList = {
   Tabs: NavigatorScreenParams<TabParamList> | undefined;
   ContactDetail: { contactId: string };
+  StudyProgress: { contactId: string };
   AddContact: { contactId?: string } | undefined;
   AddEditVisit: { contactId: string; visitId?: string };
   AddActivity: { date?: string; activityId?: string } | undefined;

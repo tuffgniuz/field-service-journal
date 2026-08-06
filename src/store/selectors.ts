@@ -40,6 +40,25 @@ export function participatedFor(state: AppState, monthKey: string): boolean {
   return state.monthlyParticipation[monthKey] ?? true;
 }
 
+/** Hours credited per month for an enabled family Bible study (1 hour/week). */
+export const FAMILY_BIBLE_STUDY_MONTHLY_HOURS = 4;
+
+/** Upper bound on `creditHoursAmount`. */
+export const MAX_CREDIT_HOURS = 55;
+
+/**
+ * Family-study + custom credit hours, as configured right now. There's no
+ * per-month history for these settings (unlike `dailyLogs`), so this is
+ * intentionally only ever added to the *current* calendar month/service
+ * year — never retroactively to past months a user might review in History.
+ */
+export function creditHoursForCurrentMonth(state: AppState): number {
+  let total = 0;
+  if (state.familyBibleStudy.enabled) total += FAMILY_BIBLE_STUDY_MONTHLY_HOURS;
+  if (state.creditHoursEnabled) total += Math.min(Math.max(0, state.creditHoursAmount), MAX_CREDIT_HOURS);
+  return Math.round(total * 100) / 100;
+}
+
 export function liveTodayHours(state: AppState, nowMs: number = Date.now()): number {
   const base = state.dailyLogs[todayKey()] || 0;
   if (!state.timerStartedAt) return base;
@@ -54,6 +73,9 @@ export function monthHoursFor(state: AppState, monthKey: string, nowMs: number =
   }
   if (monthKey === currentMonthKey() && state.timerStartedAt) {
     sum += Math.max(0, (nowMs - state.timerStartedAt) / 3_600_000);
+  }
+  if (monthKey === currentMonthKey()) {
+    sum += creditHoursForCurrentMonth(state);
   }
   return Math.round(sum * 100) / 100;
 }
@@ -79,6 +101,9 @@ export function calculateReportHours(
     let logged = 0;
     if (targetMonthKey === currentMonthKey() && state.timerStartedAt) {
       logged = Math.max(0, (nowMs - state.timerStartedAt) / 3_600_000);
+    }
+    if (targetMonthKey === currentMonthKey()) {
+      logged += creditHoursForCurrentMonth(state);
     }
     const totalAccumulated = Math.round(logged * 100) / 100;
     const reportHours = Math.floor(totalAccumulated);
@@ -119,6 +144,9 @@ export function calculateReportHours(
     if (mk === currentMonthKey() && state.timerStartedAt) {
       rawSum += Math.max(0, (nowMs - state.timerStartedAt) / 3_600_000);
     }
+    if (mk === currentMonthKey()) {
+      rawSum += creditHoursForCurrentMonth(state);
+    }
     rawSum = Math.round(rawSum * 100) / 100;
 
     loggedHours = rawSum;
@@ -153,6 +181,9 @@ export function serviceYearHoursFor(state: AppState, label: number, nowMs: numbe
   }
   if (label === currentServiceYearLabel() && state.timerStartedAt) {
     sum += Math.max(0, (nowMs - state.timerStartedAt) / 3_600_000);
+  }
+  if (label === currentServiceYearLabel()) {
+    sum += creditHoursForCurrentMonth(state);
   }
   return Math.round(sum * 100) / 100;
 }

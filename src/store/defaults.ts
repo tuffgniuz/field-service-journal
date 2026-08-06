@@ -31,5 +31,10 @@ export function defaultState(): AppState {
     meetingConductorOverrides: {},
     meetingAttendance: {},
     meetingColor: null,
+    familyBibleStudy: { enabled: false, contactId: null, days: [] },
+    creditHoursEnabled: false,
+    creditHoursAmount: 0,
+    creditHoursSource: '',
+    scheduledActivityHours: {},
   };
 }

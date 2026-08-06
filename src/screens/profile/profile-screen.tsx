@@ -8,10 +8,10 @@ import { CameraIcon, SettingsIcon } from "../../components/data-display/icons";
 import { ShimmerText } from "../../components/data-display/shimmer-text";
 import { PillButton } from "../../components/actions/pill-button";
 import { YearHeatmap } from "./year-heatmap";
-import { RecentActivityCard } from "./recent-activity-card";
+
 import { useRoleMeta } from "../../hooks/use-role-meta";
 import { INTL_LOCALE_TAGS } from "../../i18n/language";
-import { recentActivityEntries, serviceYearContributionWeeks } from "../../store/selectors";
+import { serviceYearContributionWeeks } from "../../store/selectors";
 import { fmtHours } from "../../utils/format";
 import { hexToRgba } from "../../utils/color";
 import { currentServiceYearLabel } from "../../utils/dates";
@@ -45,12 +45,14 @@ export function ProfileScreen({
     () => serviceYearContributionWeeks(state, currentYearLabel, locale),
     [state, locale, currentYearLabel],
   );
-  const recentActivity = useMemo(() => recentActivityEntries(state, 4), [state]);
+
   const currentMonthName = useMemo(
     () => new Date().toLocaleDateString(locale, { month: "long" }),
     [locale],
   );
   const goal = useMemo(() => pioneerGoalFor(state), [state]);
+  const pioneerServiceButtonLabel =
+    state.role === "publisher" ? t("profile.startPioneerService") : t("profile.configurePioneerService");
   const progress = useMemo(() => serviceYearProgressFor(state), [state]);
   const auxProgress = useMemo(() => auxPioneerProgressFor(state), [state]);
   const auxPioneerConfigured =
@@ -266,7 +268,7 @@ export function ProfileScreen({
               <Pressable
                 onPress={() => navigation.navigate("PioneerService")}
                 hitSlop={8}
-                accessibilityLabel={t("profile.configurePioneerServiceAccessibility")}
+                accessibilityLabel={pioneerServiceButtonLabel}
                 style={[
                   styles.auxActionBtn,
                   { borderColor: theme.accent, backgroundColor: theme.accent },
@@ -275,7 +277,7 @@ export function ProfileScreen({
                 <Text
                   style={[styles.auxActionLabel, { color: theme.accentText }]}
                 >
-                  {t("profile.configurePioneerService")}
+                  {pioneerServiceButtonLabel}
                 </Text>
               </Pressable>
             ) : null}
@@ -351,8 +353,6 @@ export function ProfileScreen({
             </>
           ) : null}
         </View>
-
-        <RecentActivityCard theme={theme} locale={locale} entries={recentActivity} />
 
         <View
           style={[

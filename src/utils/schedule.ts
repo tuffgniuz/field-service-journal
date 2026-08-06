@@ -46,28 +46,6 @@ export function activityColorOption(key: string | null | undefined): ActivityCol
   return ACTIVITY_COLORS.find((c) => c.key === key) ?? null;
 }
 
-/** Card background for a chosen color — the swatch at full opacity, or `fallback` when no color is set. */
-export function activityCardBg(color: string | null | undefined, fallback: string): string {
-  const option = activityColorOption(color);
-  return option ? option.swatch : fallback;
-}
-
-// Every swatch is a light pastel, so a fixed dark ink reads clearly on top regardless of
-// which color is picked or which app theme (light/dark) is active — matching the checkmark
-// already used on the color-picker swatches themselves.
-const COLORED_CARD_TEXT = '#1A1A1A';
-const COLORED_CARD_SECONDARY_TEXT = 'rgba(26, 26, 26, 0.62)';
-
-/** Title/icon color for a chosen-color card, or `fallback` when no color is set. */
-export function activityCardTextColor(color: string | null | undefined, fallback: string): string {
-  return activityColorOption(color) ? COLORED_CARD_TEXT : fallback;
-}
-
-/** Subtitle/secondary-icon color for a chosen-color card, or `fallback` when no color is set. */
-export function activityCardSecondaryTextColor(color: string | null | undefined, fallback: string): string {
-  return activityColorOption(color) ? COLORED_CARD_SECONDARY_TEXT : fallback;
-}
-
 /** Monday of the week containing `d` (local time), as a fresh Date at midnight. */
 export function weekStartOf(d: Date): Date {
   const start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -216,4 +194,21 @@ export function upcomingActivitiesForContact(
     })
     .filter((a): a is ScheduledActivityOccurrence => Boolean(a))
     .sort((a, b) => a.occurrenceDate.localeCompare(b.occurrenceDate));
+}
+
+/**
+ * The next `limit` activities from today onward (today included), across all
+ * activities regardless of contact — for a compact "what's coming up" list.
+ * Sorted by occurrence date, then by (best-effort parsed) time within a date.
+ */
+export function upcomingActivities(activities: ScheduledActivity[], limit: number): ScheduledActivityOccurrence[] {
+  const today = todayKey();
+  return activities
+    .map((a) => {
+      const occurrenceDate = nextActivityOccurrenceDate(a, today);
+      return occurrenceDate ? { ...a, occurrenceDate } : null;
+    })
+    .filter((a): a is ScheduledActivityOccurrence => Boolean(a))
+    .sort((a, b) => a.occurrenceDate.localeCompare(b.occurrenceDate) || parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time))
+    .slice(0, limit);
 }

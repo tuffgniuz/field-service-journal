@@ -8,8 +8,9 @@ import { useUi } from '../../store/ui-context';
 import { themeFor } from '../../theme/theme';
 import { KeyboardAvoidingScrollView } from '../../components/layout/keyboard-avoiding-scroll-view';
 import { LabeledInput } from '../../components/inputs/field';
+import { PublicationPickerField } from '../../components/inputs/publication-picker-field';
 import { Chip } from '../../components/data-display/chip';
-import { PillButton } from '../../components/actions/pill-button';
+import { TrashIcon } from '../../components/data-display/icons';
 import { STATUS_ORDER, type ContactStatus, type Contact } from '../../store/types';
 import { useStatusMeta } from '../../hooks/use-status-meta';
 import { useCurrentLocation } from '../../hooks/use-current-location';
@@ -70,7 +71,16 @@ export function AddContactScreen({
         <Text style={[styles.title, { color: theme.text }]}>
           {t(editingContactId ? 'addContact.editTitle' : 'addContact.title')}
         </Text>
-        <View style={{ width: 44 }} />
+        <View style={styles.headerRight}>
+          {editingContactId ? (
+            <Pressable onPress={onDelete} hitSlop={8} style={styles.deleteIconBtn}>
+              <TrashIcon color={theme.danger} size={16} />
+            </Pressable>
+          ) : null}
+          <Pressable onPress={save} style={[styles.saveBtn, { backgroundColor: theme.accent }]}>
+            <Text style={[styles.saveBtnLabel, { color: theme.accentText }]}>{t('addContact.save')}</Text>
+          </Pressable>
+        </View>
       </View>
 
       <LabeledInput
@@ -99,13 +109,14 @@ export function AddContactScreen({
         })}
       </View>
 
-      <LabeledInput
+      <PublicationPickerField
         label={t('addContact.publication')}
         value={publication}
-        onChangeText={setPublication}
-        placeholder={t('addContact.publicationPlaceholder')}
+        onChange={setPublication}
+        language={state.language}
         theme={theme}
-        fontSize={14.5}
+        placeholder={t('addContact.publicationPlaceholder')}
+        noneLabel={t('addContact.publicationNone')}
         style={{ marginBottom: 22 }}
       />
 
@@ -132,22 +143,19 @@ export function AddContactScreen({
         fontSize={14.5}
         style={{ marginBottom: 30 }}
       />
-
-      <PillButton label={t('addContact.save')} onPress={save} theme={theme} />
-      {editingContactId ? (
-        <Pressable onPress={onDelete} style={styles.deleteBtn}>
-          <Text style={[styles.deleteLabel, { color: theme.danger }]}>{t('addContact.deleteContact')}</Text>
-        </Pressable>
-      ) : null}
     </KeyboardAvoidingScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 24, paddingBottom: 100 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 },
+  container: { padding: 24, paddingBottom: 40 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, gap: 10 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   cancel: { fontSize: 14.5 },
   title: { fontSize: 15.5, fontWeight: '700' },
+  deleteIconBtn: { padding: 4 },
+  saveBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 18 },
+  saveBtnLabel: { fontSize: 13.5, fontWeight: '700' },
   label: { fontSize: 12, marginBottom: 8 },
   chipsRow: { flexDirection: 'row', gap: 8, marginBottom: 22, flexWrap: 'wrap' },
   addressLabelRow: {
@@ -158,6 +166,4 @@ const styles = StyleSheet.create({
   },
   useLocationLink: { fontSize: 12.5, fontWeight: '600' },
   locatingRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  deleteBtn: { alignItems: 'center', marginTop: 16 },
-  deleteLabel: { fontSize: 14, fontWeight: '600' },
 });

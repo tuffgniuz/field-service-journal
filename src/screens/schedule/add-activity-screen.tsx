@@ -10,7 +10,7 @@ import { LabeledInput, LabeledTextArea } from '../../components/inputs/field';
 import { TimePickerField } from '../../components/inputs/time-picker-field';
 import { ColorPickerRow } from '../../components/inputs/color-picker-row';
 import { Chip } from '../../components/data-display/chip';
-import { PillButton } from '../../components/actions/pill-button';
+import { TrashIcon } from '../../components/data-display/icons';
 import { dateKey, parseDateKey } from '../../utils/dates';
 import { ACTIVITY_TYPE_KEYS, currentWeekStart, weekDates, weekStartOf } from '../../utils/schedule';
 import { INTL_LOCALE_TAGS } from '../../i18n/language';
@@ -131,9 +131,20 @@ export function AddActivityScreen({
         <Text style={[styles.title, { color: theme.text }]}>
           {t(editingActivityId ? 'addActivity.editTitle' : 'addActivity.title')}
         </Text>
-        <Pressable onPress={save} disabled={!selectedDate} style={[styles.saveBtn, { backgroundColor: theme.accent, opacity: selectedDate ? 1 : 0.5 }]}>
-          <Text style={[styles.saveBtnLabel, { color: theme.accentText }]}>{t('addActivity.save')}</Text>
-        </Pressable>
+        <View style={styles.headerRight}>
+          {editingActivityId ? (
+            <Pressable onPress={onDelete} hitSlop={8} style={styles.deleteIconBtn}>
+              <TrashIcon color={theme.danger} size={16} />
+            </Pressable>
+          ) : null}
+          <Pressable
+            onPress={save}
+            disabled={!selectedDate}
+            style={[styles.saveBtn, { backgroundColor: theme.accent, opacity: selectedDate ? 1 : 0.5 }]}
+          >
+            <Text style={[styles.saveBtnLabel, { color: theme.accentText }]}>{t('addActivity.save')}</Text>
+          </Pressable>
+        </View>
       </View>
 
       <Text style={[styles.label, { color: theme.secondaryText }]}>{t('addActivity.typeLabel')}</Text>
@@ -266,26 +277,21 @@ export function AddActivityScreen({
         style={{ marginBottom: 22 }}
       />
 
-      {editingActivityId ? (
-        <Pressable onPress={onDelete} style={styles.deleteBtn}>
-          <Text style={[styles.deleteLabel, { color: theme.danger }]}>{t('addActivity.deleteActivity')}</Text>
-        </Pressable>
-      ) : null}
     </KeyboardAvoidingScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 24, paddingBottom: 100 },
+  container: { padding: 24, paddingBottom: 40 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, gap: 10 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   cancel: { fontSize: 14.5 },
   title: { fontSize: 15.5, fontWeight: '700' },
+  deleteIconBtn: { padding: 4 },
   saveBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 18 },
   saveBtnLabel: { fontSize: 13.5, fontWeight: '700' },
   label: { fontSize: 12, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.4 },
   chipsRow: { flexDirection: 'row', gap: 8, marginBottom: 22, flexWrap: 'wrap' },
   timeRow: { flexDirection: 'row', gap: 12, marginBottom: 22 },
   timeField: { flex: 1, minWidth: 0 },
-  deleteBtn: { alignItems: 'center', marginTop: 4, marginBottom: 16 },
-  deleteLabel: { fontSize: 14, fontWeight: '600' },
 });

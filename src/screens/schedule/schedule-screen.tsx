@@ -1,18 +1,16 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useMemo, useRef, useState, useTransition } from 'react';
+import { ActivityIndicator, FlatList, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../../store/app-context';
-import { themeFor } from '../../theme/theme';
+import { themeFor, type Theme } from '../../theme/theme';
 import { ActivityTypeIcon, CalendarIcon, CheckIcon, PartnerIcon } from '../../components/data-display/icons';
 import { Chip } from '../../components/data-display/chip';
 import { dateKey, monthByOffset, monthKeyOf, monthLabel, todayKey } from '../../utils/dates';
 import {
   ACTIVITY_TYPE_KEYS,
   activitiesOnDate,
-  activityCardBg,
-  activityCardSecondaryTextColor,
-  activityCardTextColor,
+  activityColorOption,
   currentWeekStart,
   shiftWeek,
   weekDates,
@@ -20,8 +18,10 @@ import {
 } from '../../utils/schedule';
 import { formatTimeLabel } from '../../utils/time';
 import { INTL_LOCALE_TAGS } from '../../i18n/language';
-import type { ActivityType, ScheduledActivity } from '../../store/types';
+import type { ActivityType, Contact, MeetingScheduleDay, ScheduledActivity } from '../../store/types';
 import type { TabScreenNavProp } from '../../navigation/types';
+
+type TFn = ReturnType<typeof useTranslation>['t'];
 
 /**
  * How far past today's week the agenda spans going forward — a wide-but-
@@ -42,22 +42,11 @@ const FILTER_ORDER: Array<ActivityType | 'meeting'> = [
 ];
 
 type MonthRow = { kind: 'month'; key: string; monthDate: Date };
-type WeekRangeRow = { kind: 'weekRange'; key: string; weekStart: Date };
 type DayRow = { kind: 'day'; key: string; date: Date; meetingVisible: boolean; activities: ScheduledActivity[] };
-type ScheduleRow = MonthRow | WeekRangeRow | DayRow;
+type ScheduleRow = MonthRow | DayRow;
 
 function rowDate(row: ScheduleRow): Date {
-  return row.kind === 'month' ? row.monthDate : row.kind === 'weekRange' ? row.weekStart : row.date;
-}
-
-/** e.g. "Aug 2 – 8" (no year, matching the agenda's inline week dividers). */
-function formatWeekRangeShort(weekStart: Date, locale: string): string {
-  const end = new Date(weekStart);
-  end.setDate(end.getDate() + 6);
-  const sameMonth = weekStart.getMonth() === end.getMonth();
-  const startLabel = weekStart.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
-  const endLabel = sameMonth ? String(end.getDate()) : end.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
-  return `${startLabel} – ${endLabel}`;
+  return row.kind === 'month' ? row.monthDate : row.date;
 }
 
 function buildScheduleRows(
@@ -71,35 +60,207 @@ function buildScheduleRows(
   let cursor = new Date(rangeStart);
 
   while (cursor < rangeEndExclusive) {
-    const mKey = monthKeyOf(cursor);
-    if (mKey !== lastMonthKey) {
-      lastMonthKey = mKey;
-      rows.push({ kind: 'month', key: `m-${mKey}`, monthDate: new Date(cursor) });
-    }
-
-    const dayRows: DayRow[] = [];
     for (const d of weekDates(cursor)) {
+      // Checked per-day (not per-week) so the divider lands exactly on the
+      // 1st of the month even when that date falls mid-week, rather than at
+      // the Monday of whichever week the 1st happens to be in.
+      const mKey = monthKeyOf(d);
+      if (mKey !== lastMonthKey) {
+        lastMonthKey = mKey;
+        rows.push({ kind: 'month', key: `m-${mKey}`, monthDate: new Date(d) });
+      }
+
       const key = dateKey(d);
       const meetingDay = state.meetingSchedule[d.getDay()];
       const meetingVisible = Boolean(meetingDay?.enabled) && (activeFilters.size === 0 || activeFilters.has('meeting'));
       const activities = activitiesOnDate(state.scheduledActivities, key).filter(
         (a) => activeFilters.size === 0 || activeFilters.has(a.type)
       );
-      if (meetingVisible || activities.length > 0) {
-        dayRows.push({ kind: 'day', key: `d-${key}`, date: d, meetingVisible, activities });
-      }
-    }
-
-    if (dayRows.length === 0) {
-      rows.push({ kind: 'weekRange', key: `w-${dateKey(cursor)}`, weekStart: new Date(cursor) });
-    } else {
-      rows.push(...dayRows);
+      rows.push({ kind: 'day', key: `d-${key}`, date: d, meetingVisible, activities });
     }
     cursor = shiftWeek(cursor, 1);
   }
 
   return rows;
 }
+
+/**
+ * Memoized so scrolling (which re-renders ScheduleScreen on every visible-month
+ * change) doesn't force every mounted month divider to redo its work — only
+ * dividers whose props actually changed re-render.
+ */
+const MonthDividerRow = React.memo(function MonthDividerRow({
+  monthDate,
+  locale,
+  color,
+}: {
+  monthDate: Date;
+  locale: string;
+  color: string;
+}) {
+  return (
+    <View style={styles.monthDivider}>
+      <Text style={[styles.monthDividerText, { color }]}>{monthLabel(monthDate, locale)}</Text>
+    </View>
+  );
+});
+
+/**
+ * Memoized for the same reason as MonthDividerRow — this is by far the
+ * heaviest cell (icons, colors, partner pills per activity), and the agenda
+ * can have 150+ of them mounted, so skipping unchanged rows on unrelated
+ * re-renders (e.g. scroll-driven header updates) matters a lot here.
+ */
+const DayRowItem = React.memo(function DayRowItem({
+  item,
+  theme,
+  locale,
+  t,
+  meetingDay,
+  meetingLocation,
+  meetingConductor,
+  attended,
+  meetingColor,
+  uses24HourClock,
+  contacts,
+  isToday,
+  onToggleAttendance,
+  onAddPress,
+  onActivityPress,
+}: {
+  item: DayRow;
+  theme: Theme;
+  locale: string;
+  t: TFn;
+  meetingDay: MeetingScheduleDay | undefined;
+  meetingLocation: string;
+  meetingConductor: string;
+  attended: boolean;
+  meetingColor: string | null;
+  uses24HourClock: boolean | null;
+  contacts: Contact[];
+  isToday: boolean;
+  onToggleAttendance: () => void;
+  onAddPress: () => void;
+  onActivityPress: (activityId: string) => void;
+}) {
+  const date = item.date;
+
+  return (
+    <View style={styles.dayRow}>
+      <View style={styles.dateCol}>
+        <Text style={[styles.dateDow, { color: theme.secondaryText }]}>
+          {date.toLocaleDateString(locale, { weekday: 'short' })}
+        </Text>
+        <View style={[styles.dateBadge, isToday ? { backgroundColor: theme.accent } : null]}>
+          <Text style={[styles.dateBadgeNumber, { color: isToday ? theme.accentText : theme.text }]}>{date.getDate()}</Text>
+        </View>
+      </View>
+
+      <View style={styles.cardsCol}>
+        {item.meetingVisible || item.activities.length > 0 ? (
+          <Pressable onPress={onAddPress} hitSlop={8} style={styles.addLinkRow}>
+            <Text style={[styles.addLink, { color: theme.accent }]}>{t('schedule.addLink')}</Text>
+          </Pressable>
+        ) : null}
+
+        {item.meetingVisible && meetingDay ? (
+          <Pressable
+            onPress={onToggleAttendance}
+            accessibilityLabel={t('schedule.attendedAccessibility')}
+            style={[styles.card, { backgroundColor: theme.card, opacity: attended ? 1 : 0.7 }]}
+          >
+            <View style={[styles.cardBar, { backgroundColor: activityColorOption(meetingColor)?.swatch ?? theme.secondaryText }]} />
+            <View style={styles.cardBody}>
+              <View style={styles.cardTitleRow}>
+                <Text
+                  style={[styles.cardType, { color: activityColorOption(meetingColor)?.swatch ?? theme.secondaryText, flex: 1 }]}
+                  numberOfLines={1}
+                >
+                  {t('schedule.meetingForFieldService')}
+                </Text>
+                {attended ? <CheckIcon color={theme.accent} size={13} /> : null}
+              </View>
+              {meetingConductor ? (
+                <Text style={[styles.cardSub, { color: theme.text }]}>
+                  {t('schedule.conductedBy', { name: meetingConductor })}
+                </Text>
+              ) : null}
+              <Text style={[styles.cardSub, { color: theme.secondaryText }]}>
+                {formatTimeLabel(meetingDay.time, locale, '', uses24HourClock)}
+                {meetingLocation ? ` · ${meetingLocation}` : ''}
+              </Text>
+            </View>
+          </Pressable>
+        ) : null}
+
+        {item.activities.map((activity) => {
+          const contact = activity.contactId ? contacts.find((c) => c.id === activity.contactId) : null;
+          const typeLabel = t(ACTIVITY_TYPE_KEYS[activity.type]);
+          const title = contact?.name || activity.location || typeLabel;
+          const timeLabel = activity.endTime
+            ? `${formatTimeLabel(activity.time, locale, '', uses24HourClock)}-${formatTimeLabel(
+                activity.endTime,
+                locale,
+                '',
+                uses24HourClock
+              )}`
+            : formatTimeLabel(activity.time, locale, '', uses24HourClock);
+          const partners = activity.partners
+            .split(',')
+            .map((p) => p.trim())
+            .filter(Boolean);
+          const accent = activityColorOption(activity.color)?.swatch ?? theme.secondaryText;
+
+          return (
+            <Pressable
+              key={activity.id}
+              onPress={() => onActivityPress(activity.id)}
+              style={[styles.card, { backgroundColor: theme.card }]}
+            >
+              <View style={[styles.cardBar, { backgroundColor: accent }]} />
+              <View style={styles.cardBody}>
+                <View style={styles.cardTitleRow}>
+                  <ActivityTypeIcon type={activity.type} color={accent} size={13} />
+                  <Text style={[styles.cardType, { color: accent }]} numberOfLines={1}>
+                    {typeLabel}
+                  </Text>
+                </View>
+                <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={1}>
+                  {title}
+                </Text>
+                <Text style={[styles.cardSub, { color: theme.secondaryText }]} numberOfLines={1}>
+                  {timeLabel}
+                  {contact?.name && activity.location ? ` · ${activity.location}` : ''}
+                </Text>
+                {partners.length > 0 ? (
+                  <View style={styles.partnerRow}>
+                    {partners.map((p, pi) => (
+                      <View key={pi} style={[styles.partnerPill, { borderColor: theme.border }]}>
+                        <PartnerIcon color={theme.secondaryText} size={12} />
+                        <Text style={[styles.partnerLabel, { color: theme.secondaryText }]} numberOfLines={1}>
+                          {p}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+              </View>
+            </Pressable>
+          );
+        })}
+
+        {!item.meetingVisible && item.activities.length === 0 ? (
+          <Pressable onPress={onAddPress} hitSlop={4}>
+            <Text style={[styles.emptyDayText, { color: theme.secondaryText }]}>
+              {t('schedule.noActivities')} · {t('schedule.tapToAddActivity')}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
+    </View>
+  );
+});
 
 export function ScheduleScreen({ navigation }: { navigation: TabScreenNavProp<'Schedule'> }) {
   const { state, actions } = useApp();
@@ -113,6 +274,7 @@ export function ScheduleScreen({ navigation }: { navigation: TabScreenNavProp<'S
 
   const [activeFilters, setActiveFilters] = useState<Set<ActivityType | 'meeting'>>(new Set());
   const [visibleMonthLabel, setVisibleMonthLabel] = useState(() => monthLabel(new Date(), locale));
+  const [isFilterPending, startFilterTransition] = useTransition();
 
   const { rangeStart, rangeEndExclusive } = useMemo(
     () => ({
@@ -140,156 +302,70 @@ export function ScheduleScreen({ navigation }: { navigation: TabScreenNavProp<'S
   }).current;
 
   const toggleFilter = (key: ActivityType | 'meeting') => {
-    setActiveFilters((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
+    startFilterTransition(() => {
+      setActiveFilters((prev) => {
+        const next = new Set(prev);
+        if (next.has(key)) next.delete(key);
+        else next.add(key);
+        return next;
+      });
     });
   };
 
   const filterLabel = (key: ActivityType | 'meeting') => (key === 'meeting' ? t('schedule.filterMeeting') : t(ACTIVITY_TYPE_KEYS[key]));
 
-  const renderRow = ({ item }: { item: ScheduleRow }) => {
-    if (item.kind === 'month') {
+  const { meetingSchedule, meetingLocationOverrides, meetingConductorOverrides, meetingAttendance, meetingColor, contacts, uses24HourClock } =
+    state;
+
+  const renderRow = useCallback(
+    ({ item }: { item: ScheduleRow }) => {
+      if (item.kind === 'month') {
+        return <MonthDividerRow monthDate={item.monthDate} locale={locale} color={theme.text} />;
+      }
+
+      const key = dateKey(item.date);
+      const dow = item.date.getDay();
+      const meetingDay = meetingSchedule[dow];
+      const meetingLocation = meetingLocationOverrides[key] ?? meetingDay?.location ?? '';
+      const meetingConductor = meetingConductorOverrides[key] ?? '';
+      const attended = Boolean(meetingAttendance[key]);
+      const isToday = key === todayKey();
+
       return (
-        <View style={styles.monthDivider}>
-          <Text style={[styles.monthDividerText, { color: theme.text }]}>{monthLabel(item.monthDate, locale)}</Text>
-        </View>
+        <DayRowItem
+          item={item}
+          theme={theme}
+          locale={locale}
+          t={t}
+          meetingDay={meetingDay}
+          meetingLocation={meetingLocation}
+          meetingConductor={meetingConductor}
+          attended={attended}
+          meetingColor={meetingColor}
+          uses24HourClock={uses24HourClock}
+          contacts={contacts}
+          isToday={isToday}
+          onToggleAttendance={() => actions.toggleMeetingAttendance(key)}
+          onAddPress={() => navigation.navigate('AddActivity', { date: key })}
+          onActivityPress={(activityId) => navigation.navigate('AddActivity', { activityId })}
+        />
       );
-    }
-
-    if (item.kind === 'weekRange') {
-      return (
-        <Text style={[styles.weekRangeText, { color: theme.secondaryText }]}>
-          {formatWeekRangeShort(item.weekStart, locale)}
-        </Text>
-      );
-    }
-
-    const date = item.date;
-    const key = dateKey(date);
-    const dow = date.getDay();
-    const meetingDay = state.meetingSchedule[dow];
-    const meetingLocationOverride = state.meetingLocationOverrides[key];
-    const meetingLocation = meetingLocationOverride ?? meetingDay?.location ?? '';
-    const meetingConductor = state.meetingConductorOverrides[key] ?? '';
-    const attended = Boolean(state.meetingAttendance[key]);
-    const isToday = key === todayKey();
-
-    return (
-      <View style={styles.dayRow}>
-        <View style={styles.dateCol}>
-          <Text style={[styles.dateDow, { color: theme.secondaryText }]}>
-            {date.toLocaleDateString(locale, { weekday: 'short' })}
-          </Text>
-          <View style={[styles.dateBadge, isToday ? { backgroundColor: theme.accent } : null]}>
-            <Text style={[styles.dateBadgeNumber, { color: isToday ? theme.accentText : theme.text }]}>{date.getDate()}</Text>
-          </View>
-        </View>
-
-        <View style={styles.cardsCol}>
-          <Pressable onPress={() => navigation.navigate('AddActivity', { date: key })} hitSlop={8} style={styles.addLinkRow}>
-            <Text style={[styles.addLink, { color: theme.accent }]}>{t('schedule.addLink')}</Text>
-          </Pressable>
-
-          {item.meetingVisible ? (
-            <Pressable
-              onPress={() => actions.toggleMeetingAttendance(key)}
-              accessibilityLabel={t('schedule.attendedAccessibility')}
-              style={[
-                styles.card,
-                {
-                  backgroundColor: activityCardBg(state.meetingColor, theme.card),
-                  opacity: attended ? 1 : 0.7,
-                },
-              ]}
-            >
-              <View style={styles.cardBody}>
-                <View style={styles.cardTitleRow}>
-                  <Text style={[styles.cardTitle, { color: theme.accentText }]}>{t('schedule.meetingForFieldService')}</Text>
-                  {attended ? <CheckIcon color={activityCardTextColor(state.meetingColor, theme.accent)} size={13} /> : null}
-                </View>
-                <Text style={[styles.cardSub, { color: activityCardSecondaryTextColor(state.meetingColor, theme.secondaryText) }]}>
-                  {formatTimeLabel(meetingDay.time, locale, '', state.uses24HourClock)}
-                  {meetingLocation ? ` · ${meetingLocation}` : ''}
-                </Text>
-                {meetingConductor ? (
-                  <Text style={[styles.cardSub, { color: activityCardSecondaryTextColor(state.meetingColor, theme.secondaryText) }]}>
-                    {t('schedule.conductedBy', { name: meetingConductor })}
-                  </Text>
-                ) : null}
-              </View>
-            </Pressable>
-          ) : null}
-
-          {item.activities.map((activity) => {
-          const contact = activity.contactId ? state.contacts.find((c) => c.id === activity.contactId) : null;
-          const typeLabel = t(ACTIVITY_TYPE_KEYS[activity.type]);
-          const title = contact ? t('schedule.activityWithContact', { type: typeLabel, name: contact.name }) : typeLabel;
-          const timeLabel = activity.endTime
-            ? `${formatTimeLabel(activity.time, locale, '', state.uses24HourClock)}-${formatTimeLabel(
-                activity.endTime,
-                locale,
-                '',
-                state.uses24HourClock
-              )}`
-            : formatTimeLabel(activity.time, locale, '', state.uses24HourClock);
-          const partners = activity.partners
-            .split(',')
-            .map((p) => p.trim())
-            .filter(Boolean);
-
-          return (
-            <Pressable
-              key={activity.id}
-              onPress={() => navigation.navigate('AddActivity', { activityId: activity.id })}
-              style={[styles.card, { backgroundColor: activityCardBg(activity.color, theme.card) }]}
-            >
-              <View style={styles.cardBody}>
-                <View style={styles.cardTitleRow}>
-                  <ActivityTypeIcon
-                    type={activity.type}
-                    color={activityCardSecondaryTextColor(activity.color, theme.secondaryText)}
-                    size={14}
-                  />
-                  <Text style={[styles.cardTitle, { color: theme.accentText }]} numberOfLines={1}>
-                    {title}
-                  </Text>
-                </View>
-                <Text
-                  style={[styles.cardSub, { color: activityCardSecondaryTextColor(activity.color, theme.secondaryText) }]}
-                  numberOfLines={1}
-                >
-                  {timeLabel}
-                  {activity.location ? ` · ${activity.location}` : ''}
-                </Text>
-                {partners.length > 0 ? (
-                  <View style={styles.partnerRow}>
-                    {partners.map((p, pi) => (
-                      <View
-                        key={pi}
-                        style={[styles.partnerPill, { borderColor: activityCardSecondaryTextColor(activity.color, theme.border) }]}
-                      >
-                        <PartnerIcon color={activityCardSecondaryTextColor(activity.color, theme.secondaryText)} size={12} />
-                        <Text
-                          style={[styles.partnerLabel, { color: activityCardSecondaryTextColor(activity.color, theme.secondaryText) }]}
-                          numberOfLines={1}
-                        >
-                          {p}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                ) : null}
-              </View>
-            </Pressable>
-          );
-          })}
-        </View>
-      </View>
-    );
-  };
+    },
+    [
+      theme,
+      locale,
+      t,
+      meetingSchedule,
+      meetingLocationOverrides,
+      meetingConductorOverrides,
+      meetingAttendance,
+      meetingColor,
+      uses24HourClock,
+      contacts,
+      actions,
+      navigation,
+    ]
+  );
 
   return (
     <View style={[styles.flex, { backgroundColor: theme.bg }]}>
@@ -333,16 +409,23 @@ export function ScheduleScreen({ navigation }: { navigation: TabScreenNavProp<'S
         </ScrollView>
       </View>
 
-      <FlatList
-        ref={listRef}
-        data={rows}
-        keyExtractor={(r) => r.key}
-        renderItem={renderRow}
-        initialNumToRender={20}
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={{ itemVisiblePercentThreshold: 0 }}
-        contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + 100 }]}
-      />
+      <View style={styles.flex}>
+        <FlatList
+          ref={listRef}
+          data={rows}
+          keyExtractor={(r) => r.key}
+          renderItem={renderRow}
+          initialNumToRender={20}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={{ itemVisiblePercentThreshold: 0 }}
+          contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + 100 }]}
+        />
+        {isFilterPending ? (
+          <View style={styles.filterLoadingOverlay}>
+            <ActivityIndicator size="small" color={theme.accent} />
+          </View>
+        ) : null}
+      </View>
 
       <Pressable
         onPress={() => navigation.navigate('AddActivity')}
@@ -383,9 +466,14 @@ const styles = StyleSheet.create({
   filterListWrap: { height: 44, marginBottom: 12 },
   filterList: { flex: 1 },
   filterListContent: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, gap: 8 },
-  monthDivider: { paddingVertical: 10 },
-  monthDividerText: { fontSize: 17, fontWeight: '700', letterSpacing: -0.2 },
-  weekRangeText: { fontSize: 12.5, paddingVertical: 10 },
+  monthDivider: { paddingVertical: 22, alignItems: 'center' },
+  monthDividerText: {
+    fontSize: 24,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+    fontFamily: Platform.select({ ios: 'Georgia', android: 'serif', default: 'Georgia, serif' }),
+  },
+
   dayRow: { flexDirection: 'row', gap: 12, paddingTop: 10, paddingBottom: 4 },
   dateCol: { width: 44, alignItems: 'center', gap: 4, paddingTop: 2 },
   dateDow: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase' },
@@ -400,11 +488,14 @@ const styles = StyleSheet.create({
   cardsCol: { flex: 1, minWidth: 0 },
   addLinkRow: { alignItems: 'flex-end', marginBottom: 8 },
   addLink: { fontSize: 13, fontWeight: '600' },
-  card: { borderRadius: 12, padding: 12, marginBottom: 10 },
-  cardBody: { flex: 1, gap: 3 },
+  card: { flexDirection: 'row', alignItems: 'stretch', borderRadius: 12, overflow: 'hidden', marginBottom: 10 },
+  cardBar: { width: 3.5 },
+  cardBody: { flex: 1, gap: 3, paddingVertical: 12, paddingHorizontal: 12 },
   cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  cardTitle: { fontSize: 14, fontWeight: '600', flexShrink: 1 },
+  cardType: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+  cardTitle: { fontSize: 14.5, fontWeight: '700', flexShrink: 1 },
   cardSub: { fontSize: 12.5 },
+  emptyDayText: { fontSize: 13, textAlign: 'left', marginTop: 29, marginBottom: 10 },
   partnerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
   partnerPill: {
     flexDirection: 'row',
@@ -431,4 +522,10 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   fabLabel: { fontSize: 26, fontWeight: '400', lineHeight: 28 },
+  filterLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

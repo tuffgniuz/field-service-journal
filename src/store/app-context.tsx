@@ -8,17 +8,20 @@ import type {
   BaseRole,
   Contact,
   ContactStatus,
+  FamilyBibleStudySettings,
   LanguagePreference,
   MeetingScheduleDay,
   RecurringRule,
   ReportTone,
   RuntimeState,
+  ScheduledActivity,
   ThemePreference,
   Visit,
 } from './types';
 import { defaultState } from './defaults';
 import { loadState, saveState } from './storage';
-import { currentMonthKey, currentServiceYearLabel, previousMonthKey, todayKey } from '../utils/dates';
+import { MAX_CREDIT_HOURS } from './selectors';
+import { currentMonthKey, currentServiceYearLabel, dateKey, parseDateKey, previousMonthKey, todayKey } from '../utils/dates';
 import { resolveEffectiveRole } from '../utils/aux-pioneer';
 import { buildDummySeed, DUMMY_CONTACT_PREFIX } from '../utils/dev-seed';
 import { pickSupportedLanguage } from '../i18n/language';
@@ -105,12 +108,18 @@ interface AppActions {
   updateContact: (contactId: string, draft: ContactDraft) => void;
   deleteContact: (contactId: string) => void;
   cycleContactStatus: (contactId: string) => void;
+  /** Toggles one study-item id (see `StudyItem` in utils/publications.ts) on/off a contact's `studyProgress`. */
+  toggleStudyItem: (contactId: string, itemId: string) => void;
   saveVisit: (contactId: string, visit: VisitDraft, editingVisitId?: string | null) => void;
   deleteVisit: (contactId: string, visitId: string) => void;
   addHours: (dateKey: string, deltaHours: number) => void;
   addActivity: (draft: ActivityDraft) => string;
   updateActivity: (activityId: string, draft: ActivityDraft) => void;
   deleteActivity: (activityId: string) => void;
+  /** Checks off a scheduled-activity occurrence, adding `hours` to that date's log (replacing any hours previously confirmed for the same occurrence). */
+  confirmActivityHours: (activityId: string, occurrenceDate: string, hours: number) => void;
+  /** Un-checks a previously confirmed activity occurrence, subtracting its logged hours back out. */
+  unconfirmActivityHours: (activityId: string, occurrenceDate: string) => void;
   /** Replaces the full 7-day recurring meeting-for-field-service template. */
   setMeetingSchedule: (days: MeetingScheduleDay[]) => void;
   /** Sets or clears the one-off meeting-for-field-service location for a specific "YYYY-MM-DD". */
@@ -123,6 +132,18 @@ interface AppActions {
   toggleMeetingAttendance: (dateKey: string) => void;
   /** Sets the meeting-for-field-service card's color — a key into `ACTIVITY_COLORS`, or null for the default uncolored card. */
   setMeetingColor: (color: string | null) => void;
+  /** Toggles the family Bible study credit on/off, syncing its recurring weekly Schedule entries. */
+  setFamilyBibleStudyEnabled: (enabled: boolean) => void;
+  /** Sets which contact the family Bible study is with, updating any existing recurring Schedule entries. */
+  setFamilyBibleStudyContact: (contactId: string | null) => void;
+  /** Toggles a single weekday (0=Sunday..6=Saturday) on/off the family Bible study schedule. */
+  toggleFamilyBibleStudyDay: (dayOfWeek: number) => void;
+  /** Toggles whether additional field-service credit hours are reported each month. */
+  setCreditHoursEnabled: (enabled: boolean) => void;
+  /** Sets the additional credit hours reported each month, clamped to [0, 55]. */
+  setCreditHoursAmount: (hours: number) => void;
+  /** Sets the free-text explanation of where the credit hours come from. */
+  setCreditHoursSource: (source: string) => void;
   startTimer: () => void;
   stopTimer: () => void;
   completeOnboarding: () => void;
@@ -153,6 +174,54 @@ function vibrate(ms: number) {
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+const FAMILY_STUDY_ACTIVITY_PREFIX = 'family-study-';
+
+/** The most recent occurrence (today included) of `dayOfWeek` — a valid `recurring: 'weekly'` anchor that never lands in the future. */
+function familyBibleStudyAnchorDate(dayOfWeek: number): string {
+  const today = parseDateKey(todayKey());
+  const diff = (today.getDay() - dayOfWeek + 7) % 7;
+  const d = new Date(today);
+  d.setDate(d.getDate() - diff);
+  return dateKey(d);
+}
+
+/**
+ * Rebuilds the family-Bible-study-derived `ScheduledActivity` entries
+ * (id-prefixed `family-study-<dayOfWeek>`) to match `settings`, preserving
+ * each day's existing time/location/color/notes/partners if it was already
+ * scheduled. Leaves every other activity untouched.
+ */
+function syncFamilyBibleStudyActivities(
+  activities: ScheduledActivity[],
+  settings: FamilyBibleStudySettings
+): ScheduledActivity[] {
+  const others = activities.filter((a) => !a.id.startsWith(FAMILY_STUDY_ACTIVITY_PREFIX));
+  if (!settings.enabled) return others;
+
+  const now = new Date().toISOString();
+  const familyActivities: ScheduledActivity[] = settings.days.map((dayOfWeek) => {
+    const id = `${FAMILY_STUDY_ACTIVITY_PREFIX}${dayOfWeek}`;
+    const existing = activities.find((a) => a.id === id);
+    return {
+      id,
+      type: 'bible_study',
+      date: existing?.date ?? familyBibleStudyAnchorDate(dayOfWeek),
+      time: existing?.time ?? '',
+      endTime: existing?.endTime,
+      location: existing?.location ?? '',
+      contactId: settings.contactId,
+      color: existing?.color ?? null,
+      partners: existing?.partners ?? '',
+      recurring: 'weekly',
+      notes: existing?.notes ?? '',
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+    };
+  });
+
+  return [...others, ...familyActivities];
 }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
@@ -207,6 +276,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         // will correctly kick in as soon as the next month goes unconfirmed.
         if (persisted.lastReportedMonth === undefined && merged.onboardingDone) {
           merged.lastReportedMonth = previousMonthKey(currentMonthKey());
+        }
+        // Migration: `studyProgress` didn't exist on contacts before the
+        // study-progress-tracking feature — backfill it so array methods
+        // elsewhere don't have to guard against it being missing.
+        if (merged.contacts.some((c) => c.studyProgress === undefined)) {
+          merged.contacts = merged.contacts.map((c) => (c.studyProgress ? c : { ...c, studyProgress: [] }));
         }
         setState(merged);
       }
@@ -290,6 +365,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               publication: draft.publication?.trim() || '',
               address: draft.address?.trim() || '',
               visits: [],
+              studyProgress: [],
             },
           ],
         }));
@@ -299,14 +375,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updateContact: (contactId, draft) =>
         setState((s) => ({
           ...s,
+          contacts: s.contacts.map((c) => {
+            if (c.id !== contactId) return c;
+            const publication = draft.publication?.trim() || '';
+            return {
+              ...c,
+              name: draft.name.trim() || i18next.t('addContact.unnamedFallback'),
+              status: draft.status,
+              publication,
+              address: draft.address?.trim() || '',
+              // Switching to a different (or no) publication invalidates progress against the old one.
+              studyProgress: publication === c.publication ? c.studyProgress : [],
+            };
+          }),
+        })),
+
+      toggleStudyItem: (contactId, itemId) =>
+        setState((s) => ({
+          ...s,
           contacts: s.contacts.map((c) =>
             c.id === contactId
               ? {
                   ...c,
-                  name: draft.name.trim() || i18next.t('addContact.unnamedFallback'),
-                  status: draft.status,
-                  publication: draft.publication?.trim() || '',
-                  address: draft.address?.trim() || '',
+                  studyProgress: c.studyProgress.includes(itemId)
+                    ? c.studyProgress.filter((id) => id !== itemId)
+                    : [...c.studyProgress, itemId],
                 }
               : c
           ),
@@ -365,6 +458,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const current = s.dailyLogs[dateKey] || 0;
           const next = Math.max(0, round2(current + deltaHours));
           return { ...s, dailyLogs: { ...s.dailyLogs, [dateKey]: next } };
+        }),
+
+      confirmActivityHours: (activityId, occurrenceDate, hours) =>
+        setState((s) => {
+          const key = `${activityId}_${occurrenceDate}`;
+          const previous = s.scheduledActivityHours[key] ?? 0;
+          const current = s.dailyLogs[occurrenceDate] || 0;
+          const next = Math.max(0, round2(current - previous + hours));
+          return {
+            ...s,
+            dailyLogs: { ...s.dailyLogs, [occurrenceDate]: next },
+            scheduledActivityHours: { ...s.scheduledActivityHours, [key]: hours },
+          };
+        }),
+
+      unconfirmActivityHours: (activityId, occurrenceDate) =>
+        setState((s) => {
+          const key = `${activityId}_${occurrenceDate}`;
+          const previous = s.scheduledActivityHours[key];
+          if (previous === undefined) return s;
+          const current = s.dailyLogs[occurrenceDate] || 0;
+          const next = Math.max(0, round2(current - previous));
+          const scheduledActivityHours = { ...s.scheduledActivityHours };
+          delete scheduledActivityHours[key];
+          return { ...s, dailyLogs: { ...s.dailyLogs, [occurrenceDate]: next }, scheduledActivityHours };
         }),
 
       addActivity: (draft) => {
@@ -435,6 +553,46 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         })),
 
       setMeetingColor: (color) => setState((s) => ({ ...s, meetingColor: color })),
+
+      setFamilyBibleStudyEnabled: (enabled) =>
+        setState((s) => {
+          const familyBibleStudy = { ...s.familyBibleStudy, enabled };
+          return {
+            ...s,
+            familyBibleStudy,
+            scheduledActivities: syncFamilyBibleStudyActivities(s.scheduledActivities, familyBibleStudy),
+          };
+        }),
+
+      setFamilyBibleStudyContact: (contactId) =>
+        setState((s) => {
+          const familyBibleStudy = { ...s.familyBibleStudy, contactId };
+          return {
+            ...s,
+            familyBibleStudy,
+            scheduledActivities: syncFamilyBibleStudyActivities(s.scheduledActivities, familyBibleStudy),
+          };
+        }),
+
+      toggleFamilyBibleStudyDay: (dayOfWeek) =>
+        setState((s) => {
+          const days = s.familyBibleStudy.days.includes(dayOfWeek)
+            ? s.familyBibleStudy.days.filter((d) => d !== dayOfWeek)
+            : [...s.familyBibleStudy.days, dayOfWeek].sort((a, b) => a - b);
+          const familyBibleStudy = { ...s.familyBibleStudy, days };
+          return {
+            ...s,
+            familyBibleStudy,
+            scheduledActivities: syncFamilyBibleStudyActivities(s.scheduledActivities, familyBibleStudy),
+          };
+        }),
+
+      setCreditHoursEnabled: (enabled) => setState((s) => ({ ...s, creditHoursEnabled: enabled })),
+
+      setCreditHoursAmount: (hours) =>
+        setState((s) => ({ ...s, creditHoursAmount: Math.min(Math.max(0, hours), MAX_CREDIT_HOURS) })),
+
+      setCreditHoursSource: (source) => setState((s) => ({ ...s, creditHoursSource: source })),
 
       startTimer: () => {
         vibrate(20);

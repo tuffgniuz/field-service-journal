@@ -156,6 +156,39 @@ export function TrashIcon({ color, size = 18 }: { color: string; size?: number }
   );
 }
 
+export function BookIcon({ color, size = 18 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" {...common} stroke={color}>
+      <Path d="M12 6.5C10 5 7 4.7 4 5.4v13c3-0.7 6-0.4 8 1.1 2-1.5 5-1.8 8-1.1v-13c-3-0.7-6-0.4-8 1.1Z" />
+      <Path d="M12 6.5v13" />
+    </Svg>
+  );
+}
+
+export function StarIcon({
+  color,
+  size = 16,
+  filled = false,
+}: {
+  color: string;
+  size?: number;
+  filled?: boolean;
+}) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" {...common} stroke={color} fill={filled ? color : 'none'}>
+      <Path d="M12 3.5l2.6 5.4 5.9.7-4.3 4.1 1.1 5.9L12 16.7l-5.3 2.9 1.1-5.9-4.3-4.1 5.9-.7Z" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function ChevronRightIcon({ color, size = 16 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" {...common} stroke={color} strokeWidth={2}>
+      <Path d="M9 5l7 7-7 7" />
+    </Svg>
+  );
+}
+
 export function CheckIcon({ color, size = 14 }: { color: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" {...common} stroke={color} strokeWidth={2.4}>
