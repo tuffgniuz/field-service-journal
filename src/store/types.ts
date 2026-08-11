@@ -204,18 +204,7 @@ export interface AppState {
   serviceAreaFile: ServiceAreaFile | null;
   /** Personal reference notes (Notes tab), newest-edited first is derived at render time, not stored order. */
   notes: Note[];
-  // Google Drive sync is currently disabled — see src/screens/profile/settings-screen.tsx.
-  // /** The connected Google account for Drive sync, or null if not connected. Tokens themselves live in SecureStore, not here — see utils/google-drive.ts. */
-  // googleAccount: GoogleSyncAccount | null;
-  // /** ISO timestamp of the last successful sync to Google Drive, or null if never synced. */
-  // lastGoogleSyncAt: string | null;
 }
-
-// /** The Google account connected for Drive sync (Settings > Sync with Google). */
-// export interface GoogleSyncAccount {
-//   email: string;
-//   connectedAt: string;
-// }
 
 /**
  * AppState plus fields derived each render rather than persisted directly, as

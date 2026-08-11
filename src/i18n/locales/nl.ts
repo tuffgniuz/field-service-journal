@@ -201,26 +201,6 @@ const nl: typeof en = {
     openSettings: "Instellingen openen",
     reminderOnToast: "Herinnering ingesteld voor de 1e van elke maand",
     reminderOffToast: "Herinnering uitgezet",
-    googleSyncSection: "Synchroniseren met Google",
-    googleSyncTitle: "Back-up maken naar Google Drive",
-    googleSyncDesc:
-      "Bewaar een privé back-up van je gegevens in je eigen Google Drive, zodat je die op een nieuw toestel kunt herstellen.",
-    googleConnectButton: "Google Drive koppelen",
-    googleConnected: "Gekoppeld",
-    googleSyncNow: "Nu synchroniseren",
-    googleDisconnect: "Loskoppelen",
-    googleLastSynced: "Laatst gesynchroniseerd {{when}}",
-    googleNeverSynced: "Nog niet gesynchroniseerd",
-    googleNotConfiguredTitle: "Google-synchronisatie is nog niet ingesteld",
-    googleNotConfiguredMessage:
-      "Deze build heeft geen Google OAuth-client-ID ingesteld. Voeg er een toe in src/config/google.ts om deze functie te gebruiken.",
-    googleSyncError:
-      "Synchroniseren mislukt. Controleer je verbinding en probeer het opnieuw.",
-    googleRestoreTitle: "Back-up gevonden",
-    googleRestoreMessage:
-      "Er is een back-up van een ander toestel gevonden in je Google Drive. Nu herstellen, of de gegevens op dit toestel behouden?",
-    googleKeepLocal: "Gegevens van dit toestel behouden",
-    googleRestore: "Back-up herstellen",
     appearance: "Weergave",
     system: "Systeem",
     light: "Licht",
@@ -254,8 +234,10 @@ const nl: typeof en = {
     bibleStudies: "Bijbelstudies",
     creditHoursLabel: "Tegoeduren",
     creditHoursValue: "{{hours}} tegoeduren",
-    creditHoursStatement: "Hierin zijn {{hours}} tegoeduren opgenomen voor {{source}}.",
-    creditHoursStatementCard: "Hierin zijn <bold>{{hours}}</bold> tegoeduren opgenomen voor {{source}}.",
+    creditHoursStatement:
+      "Hierin zijn {{hours}} tegoeduren opgenomen voor {{source}}.",
+    creditHoursStatementCard:
+      "Hierin zijn <bold>{{hours}}</bold> tegoeduren opgenomen voor {{source}}.",
     formal: "Formeel",
     conversational: "Informeel",
     sendReport: "Verslag versturen",
@@ -433,12 +415,11 @@ const nl: typeof en = {
       "Dit verwijdert deze geplande activiteit permanent. Dit kan niet ongedaan worden gemaakt.",
   },
   meetingSchedule: {
-    title: "Velddienstrooster",
-    intro:
-      "Stel de terugkerende tijden in voor de {{meeting}} van je gemeente. Laat de locatie leeg op dagen dat die wisselt.",
+    title: "Velddienstbijeenkomsten",
+    intro: "Stel schema voor de {{meeting}} van je gemeente.",
     timePlaceholder: "9:00",
-    locationPlaceholder: "Locatie (optioneel, wisselt)",
-    dateLocationsTitle: "Andere locaties per datum",
+    locationPlaceholder: "Locatie (optioneel)",
+    dateLocationsTitle: "Pas aan per datum",
     addDateLocation: "+ Datum",
     dateLocationPlaceholder: "Gebruik wekelijkse locatie",
     conductorLabel: "Gids",
@@ -447,9 +428,9 @@ const nl: typeof en = {
   },
   serviceArea: {
     title: "Dienstgebied",
-    emptyTitle: "Geen dienstgebied geüpload",
+    emptyTitle: "Geen gebied geüpload",
     emptySubtitle:
-      "Upload een PDF, JPG of PNG van je toegewezen gebied, zodat je het altijd bij de hand hebt.",
+      "Upload een PDF, JPG of PNG van je persoonlijke gebied, zodat je het altijd bij de hand hebt.",
     uploadFile: "Bestand uploaden",
     uploading: "Uploaden…",
     viewAccessibility: "Dienstgebiedbestand bekijken",
@@ -459,7 +440,7 @@ const nl: typeof en = {
     remove: "Verwijderen",
     deleteTitle: "Dit bestand verwijderen?",
     deleteMessage:
-      "Dit verwijdert het geüploade dienstgebiedbestand permanent. Dit kan niet ongedaan worden gemaakt.",
+      "Dit verwijdert het geüploade gebied permanent. Dit kan niet ongedaan worden gemaakt.",
   },
   notes: {
     title: "Notities",

@@ -152,16 +152,19 @@ const en = {
     saveChanges: "Save changes",
     familyStudyLabel: "Family Bible Study",
     familyStudyToggle: "Conducting family Bible study with your children?",
-    familyStudyHint: "Counts as 1 hour a week (4 hours a month) toward your reported hours.",
+    familyStudyHint:
+      "Counts as 1 hour a week (4 hours a month) toward your reported hours.",
     familyStudyContactLabel: "Who is the study with?",
     familyStudyNoContacts: "Add a contact first to link this study.",
     familyStudyDaysLabel: "Which day(s)?",
     creditHoursLabel: "Additional Credit Hours",
     creditHoursToggle: "Report additional credit hours?",
-    creditHoursHint: "Extra hours you're allowed to credit toward your report, up to {{max}} hours.",
+    creditHoursHint:
+      "Extra hours you're allowed to credit toward your report, up to {{max}} hours.",
     creditHoursAmountLabel: "Credit hours",
     creditHoursSourceLabel: "Where do these hours come from?",
-    creditHoursSourcePlaceholder: "e.g. Special assignment, ministry training school",
+    creditHoursSourcePlaceholder:
+      "e.g. Special assignment, ministry training school",
   },
   about: {
     title: "About",
@@ -194,25 +197,6 @@ const en = {
     openSettings: "Open Settings",
     reminderOnToast: "Reminder set for the 1st of each month",
     reminderOffToast: "Reminder turned off",
-    googleSyncSection: "Sync with Google",
-    googleSyncTitle: "Back up to Google Drive",
-    googleSyncDesc:
-      "Keep a private backup of your data in your own Google Drive so you can restore it on a new device.",
-    googleConnectButton: "Connect Google Drive",
-    googleConnected: "Connected",
-    googleSyncNow: "Sync now",
-    googleDisconnect: "Disconnect",
-    googleLastSynced: "Last synced {{when}}",
-    googleNeverSynced: "Not synced yet",
-    googleNotConfiguredTitle: "Google sync isn't set up yet",
-    googleNotConfiguredMessage:
-      "This build doesn't have a Google OAuth client ID configured. Add one in src/config/google.ts to enable this feature.",
-    googleSyncError: "Sync failed. Check your connection and try again.",
-    googleRestoreTitle: "Backup found",
-    googleRestoreMessage:
-      "A backup from another device was found in your Google Drive. Restore it now, or keep the data already on this device?",
-    googleKeepLocal: "Keep this device's data",
-    googleRestore: "Restore backup",
     appearance: "Appearance",
     system: "System",
     light: "Light",
@@ -247,7 +231,8 @@ const en = {
     creditHoursLabel: "Credit hours",
     creditHoursValue: "{{hours}} credit hours",
     creditHoursStatement: "Includes {{hours}} credit hours from {{source}}.",
-    creditHoursStatementCard: "Includes <bold>{{hours}}</bold> credit hours from {{source}}.",
+    creditHoursStatementCard:
+      "Includes <bold>{{hours}}</bold> credit hours from {{source}}.",
     formal: "Formal",
     conversational: "Conversational",
     sendReport: "Send report",
@@ -369,7 +354,7 @@ const en = {
     weekOf: "Week of {{range}}",
     disclaimer:
       "Planning only — this doesn't count toward your hours. Log actual time in <highlight>{{tab}}</highlight> afterward.",
-    meetingForFieldService: "Meeting for field service",
+    meetingForFieldService: "meeting for field service",
     filterMeeting: "Meeting",
     editMeetingLink: "Edit {{meeting}} schedule ›",
     serviceAreaAccessibility: "Service area",
@@ -420,15 +405,15 @@ const en = {
     notesPlaceholder: "Anything to remember…",
     deleteActivity: "Delete activity",
     deleteTitle: "Delete this activity?",
-    deleteMessage: "This permanently removes this planned activity. This can't be undone.",
+    deleteMessage:
+      "This permanently removes this planned activity. This can't be undone.",
   },
   meetingSchedule: {
     title: "Meeting schedule",
-    intro:
-      "Set your congregation's recurring {{meeting}} times. Leave location blank on days it varies.",
+    intro: "Set your congregation's {{meeting}} schedule.",
     timePlaceholder: "9:00 AM",
-    locationPlaceholder: "Location (optional, varies)",
-    dateLocationsTitle: "Different locations by date",
+    locationPlaceholder: "Location (optional)",
+    dateLocationsTitle: "Customize per date",
     addDateLocation: "+ Date",
     dateLocationPlaceholder: "Use weekly location",
     conductorLabel: "Conductor",
@@ -438,7 +423,8 @@ const en = {
   serviceArea: {
     title: "Service Area",
     emptyTitle: "No service area uploaded",
-    emptySubtitle: "Upload a PDF, JPG, or PNG of your assigned territory so it's always on hand.",
+    emptySubtitle:
+      "Upload a PDF, JPG, or PNG of your assigned territory so it's always on hand.",
     uploadFile: "Upload file",
     uploading: "Uploading…",
     viewAccessibility: "View service area file",
@@ -447,7 +433,8 @@ const en = {
     replace: "Replace file",
     remove: "Remove",
     deleteTitle: "Remove this file?",
-    deleteMessage: "This permanently removes the uploaded service area file. This can't be undone.",
+    deleteMessage:
+      "This permanently removes the uploaded service area file. This can't be undone.",
   },
   notes: {
     title: "Notes",

@@ -21,7 +21,9 @@ export function MonthCalendar({
   theme,
   chart,
   locale,
+  canGoPrev = true,
   canGoNext,
+  showHeader = true,
   onPrevMonth,
   onNextMonth,
   onSelectDay,
@@ -29,7 +31,9 @@ export function MonthCalendar({
   theme: Theme;
   chart: ChartMonth;
   locale: string;
+  canGoPrev?: boolean;
   canGoNext: boolean;
+  showHeader?: boolean;
   onPrevMonth: () => void;
   onNextMonth: () => void;
   onSelectDay: (day: number) => void;
@@ -49,15 +53,17 @@ export function MonthCalendar({
 
   return (
     <View>
-      <View style={styles.header}>
-        <Pressable onPress={onPrevMonth} hitSlop={8} style={styles.navBtn}>
-          <Text style={[styles.navArrow, { color: theme.secondaryText }]}>‹</Text>
-        </Pressable>
-        <Text style={[styles.monthLabel, { color: theme.text }]}>{chart.label}</Text>
-        <Pressable onPress={canGoNext ? onNextMonth : undefined} hitSlop={8} style={styles.navBtn}>
-          <Text style={[styles.navArrow, { color: canGoNext ? theme.secondaryText : theme.border }]}>›</Text>
-        </Pressable>
-      </View>
+      {showHeader ? (
+        <View style={styles.header}>
+          <Pressable onPress={canGoPrev ? onPrevMonth : undefined} hitSlop={8} style={styles.navBtn}>
+            <Text style={[styles.navArrow, { color: canGoPrev ? theme.secondaryText : theme.border }]}>‹</Text>
+          </Pressable>
+          <Text style={[styles.monthLabel, { color: theme.text }]}>{chart.label}</Text>
+          <Pressable onPress={canGoNext ? onNextMonth : undefined} hitSlop={8} style={styles.navBtn}>
+            <Text style={[styles.navArrow, { color: canGoNext ? theme.secondaryText : theme.border }]}>›</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       <View style={styles.weekRow}>
         {labels.map((label, i) => (

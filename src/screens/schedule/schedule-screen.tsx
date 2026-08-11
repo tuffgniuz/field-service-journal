@@ -1,12 +1,27 @@
 import React, { useCallback, useMemo, useRef, useState, useTransition } from 'react';
-import { ActivityIndicator, FlatList, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Animated,
+  Easing,
+  FlatList,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../../store/app-context';
 import { themeFor, type Theme } from '../../theme/theme';
-import { ActivityTypeIcon, CalendarIcon, CheckIcon, MapIcon, PartnerIcon } from '../../components/data-display/icons';
+import { ActivityTypeIcon, CheckIcon, MapIcon, MeetingScheduleIcon, PartnerIcon } from '../../components/data-display/icons';
 import { Chip } from '../../components/data-display/chip';
-import { dateKey, monthByOffset, monthKeyOf, monthLabel, todayKey } from '../../utils/dates';
+import { dateKey, daysInMonth, monthByOffset, monthKeyOf, monthLabel, parseMonthKey, todayKey } from '../../utils/dates';
 import {
   ACTIVITY_TYPE_KEYS,
   activitiesOnDate,
@@ -20,6 +35,8 @@ import { formatTimeLabel } from '../../utils/time';
 import { INTL_LOCALE_TAGS } from '../../i18n/language';
 import type { ActivityType, Contact, MeetingScheduleDay, ScheduledActivity } from '../../store/types';
 import type { TabScreenNavProp } from '../../navigation/types';
+import { MonthCalendar } from '../log/month-calendar';
+import type { ChartMonth } from '../../store/selectors';
 
 type TFn = ReturnType<typeof useTranslation>['t'];
 
@@ -33,20 +50,79 @@ const RANGE_MONTHS_FORWARD = 6;
 
 const FILTER_ORDER: Array<ActivityType | 'meeting'> = [
   'meeting',
-  'bible_study',
-  'return_visit',
   'field_service',
   'cart',
-  'street',
-  'other',
 ];
 
-type MonthRow = { kind: 'month'; key: string; monthDate: Date };
+type MonthRow = { kind: 'month'; key: string; monthDate: Date; colorIndex: number };
 type DayRow = { kind: 'day'; key: string; date: Date; meetingVisible: boolean; activities: ScheduledActivity[] };
 type ScheduleRow = MonthRow | DayRow;
+type CalendarPage = { key: string; month: Date; chart: ChartMonth };
+
+const SCHEDULE_CALENDAR_VERTICAL_PADDING = 10;
+const SCHEDULE_CALENDAR_WEEKDAY_ROW_HEIGHT = 22;
+const SCHEDULE_CALENDAR_WEEK_ROW_HEIGHT = 44;
 
 function rowDate(row: ScheduleRow): Date {
   return row.kind === 'month' ? row.monthDate : row.date;
+}
+
+function monthOffsetFromCurrent(month: Date): number {
+  const now = new Date();
+  return (month.getFullYear() - now.getFullYear()) * 12 + (month.getMonth() - now.getMonth());
+}
+
+function calendarWeekCount(month: Date): number {
+  return Math.ceil((new Date(month.getFullYear(), month.getMonth(), 1).getDay() + daysInMonth(month.getFullYear(), month.getMonth())) / 7);
+}
+
+function scheduleCalendarHeight(month: Date): number {
+  return SCHEDULE_CALENDAR_VERTICAL_PADDING + SCHEDULE_CALENDAR_WEEKDAY_ROW_HEIGHT + calendarWeekCount(month) * SCHEDULE_CALENDAR_WEEK_ROW_HEIGHT;
+}
+
+const MONTH_DIVIDER_GRADIENTS = [
+  { light: ['rgba(176, 141, 87, 0)', 'rgba(176, 141, 87, 0.16)', 'rgba(176, 141, 87, 0)'], dark: ['rgba(199, 160, 107, 0)', 'rgba(199, 160, 107, 0.20)', 'rgba(199, 160, 107, 0)'] },
+  { light: ['rgba(74, 107, 138, 0)', 'rgba(74, 107, 138, 0.14)', 'rgba(74, 107, 138, 0)'], dark: ['rgba(74, 107, 138, 0)', 'rgba(74, 107, 138, 0.24)', 'rgba(74, 107, 138, 0)'] },
+  { light: ['rgba(84, 132, 103, 0)', 'rgba(84, 132, 103, 0.14)', 'rgba(84, 132, 103, 0)'], dark: ['rgba(102, 155, 124, 0)', 'rgba(102, 155, 124, 0.20)', 'rgba(102, 155, 124, 0)'] },
+  { light: ['rgba(166, 92, 86, 0)', 'rgba(166, 92, 86, 0.12)', 'rgba(166, 92, 86, 0)'], dark: ['rgba(210, 118, 104, 0)', 'rgba(210, 118, 104, 0.18)', 'rgba(210, 118, 104, 0)'] },
+] as const;
+
+function buildScheduleCalendarMonth(
+  state: { meetingSchedule: { dayOfWeek: number; enabled: boolean }[]; scheduledActivities: ScheduledActivity[] },
+  month: Date,
+  locale: string
+): ChartMonth {
+  const year = month.getFullYear();
+  const month0 = month.getMonth();
+  const monthKey = monthKeyOf(month);
+  const today = todayKey();
+  const totalDays = daysInMonth(year, month0);
+
+  const days = Array.from({ length: totalDays }, (_, index) => {
+    const day = index + 1;
+    const dayDate = new Date(year, month0, day);
+    const key = dateKey(dayDate);
+    const meetingDay = state.meetingSchedule[dayDate.getDay()];
+    const hasMeeting = Boolean(meetingDay?.enabled);
+    const scheduledCount = activitiesOnDate(state.scheduledActivities, key).length;
+
+    return {
+      day,
+      hours: hasMeeting || scheduledCount > 0 ? 1 : 0,
+      isToday: key === today,
+      tickLabel: '',
+    };
+  });
+
+  return {
+    label: monthLabel(month, locale),
+    monthKey,
+    year,
+    month0,
+    days,
+    avg: 0,
+    isCurrent: monthKey === monthKeyOf(new Date()),
+  };
 }
 
 function buildScheduleRows(
@@ -56,21 +132,14 @@ function buildScheduleRows(
   rangeEndExclusive: Date
 ): ScheduleRow[] {
   const rows: ScheduleRow[] = [];
-  let lastMonthKey = '';
   let cursor = new Date(rangeStart);
 
   while (cursor < rangeEndExclusive) {
     for (const d of weekDates(cursor)) {
-      // Checked per-day (not per-week) so the divider lands exactly on the
-      // 1st of the month even when that date falls mid-week, rather than at
-      // the Monday of whichever week the 1st happens to be in.
-      const mKey = monthKeyOf(d);
-      if (mKey !== lastMonthKey) {
-        lastMonthKey = mKey;
-        rows.push({ kind: 'month', key: `m-${mKey}`, monthDate: new Date(d) });
-      }
-
       const key = dateKey(d);
+      if (d.getDate() === 1) {
+        rows.push({ kind: 'month', key: `m-${key}`, monthDate: new Date(d), colorIndex: d.getMonth() % MONTH_DIVIDER_GRADIENTS.length });
+      }
       const meetingDay = state.meetingSchedule[d.getDay()];
       const meetingVisible = Boolean(meetingDay?.enabled) && (activeFilters.size === 0 || activeFilters.has('meeting'));
       const activities = activitiesOnDate(state.scheduledActivities, key).filter(
@@ -84,33 +153,88 @@ function buildScheduleRows(
   return rows;
 }
 
-/**
- * Memoized so scrolling (which re-renders ScheduleScreen on every visible-month
- * change) doesn't force every mounted month divider to redo its work — only
- * dividers whose props actually changed re-render.
- */
 const MonthDividerRow = React.memo(function MonthDividerRow({
   monthDate,
   locale,
-  color,
+  theme,
+  colorIndex,
 }: {
   monthDate: Date;
   locale: string;
-  color: string;
+  theme: Theme;
+  colorIndex: number;
 }) {
+  const gradient = MONTH_DIVIDER_GRADIENTS[colorIndex % MONTH_DIVIDER_GRADIENTS.length][theme.dark ? 'dark' : 'light'];
   return (
     <View style={styles.monthDivider}>
-      <Text style={[styles.monthDividerText, { color }]}>{monthLabel(monthDate, locale)}</Text>
+      <LinearGradient colors={gradient} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.monthDividerGradient}>
+        <Text style={[styles.monthDividerText, { color: theme.secondaryText }]}>{monthLabel(monthDate, locale)}</Text>
+      </LinearGradient>
     </View>
   );
 });
 
 /**
- * Memoized for the same reason as MonthDividerRow — this is by far the
- * heaviest cell (icons, colors, partner pills per activity), and the agenda
- * can have 150+ of them mounted, so skipping unchanged rows on unrelated
- * re-renders (e.g. scroll-driven header updates) matters a lot here.
+ * Memoized because this is by far the heaviest cell (icons, colors, partner
+ * pills per activity), and the agenda can have 150+ of them mounted.
  */
+type DayRowItemProps = {
+  item: DayRow;
+  theme: Theme;
+  locale: string;
+  t: TFn;
+  meetingDay: MeetingScheduleDay | undefined;
+  meetingLocation: string;
+  meetingConductor: string;
+  attended: boolean;
+  meetingColor: string | null;
+  uses24HourClock: boolean | null;
+  contacts: Contact[];
+  isToday: boolean;
+  onToggleAttendance: () => void;
+  onAddPress: () => void;
+  onActivityPress: (activityId: string) => void;
+};
+
+function sameActivities(a: ScheduledActivity[], b: ScheduledActivity[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (
+      a[i]?.id !== b[i]?.id ||
+      a[i]?.updatedAt !== b[i]?.updatedAt ||
+      a[i]?.contactId !== b[i]?.contactId ||
+      a[i]?.location !== b[i]?.location ||
+      a[i]?.time !== b[i]?.time ||
+      a[i]?.endTime !== b[i]?.endTime ||
+      a[i]?.partners !== b[i]?.partners ||
+      a[i]?.color !== b[i]?.color
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function areDayRowsEqual(prev: DayRowItemProps, next: DayRowItemProps): boolean {
+  return (
+    prev.item.key === next.item.key &&
+    prev.item.meetingVisible === next.item.meetingVisible &&
+    sameActivities(prev.item.activities, next.item.activities) &&
+    prev.theme === next.theme &&
+    prev.locale === next.locale &&
+    prev.t === next.t &&
+    prev.meetingDay === next.meetingDay &&
+    prev.meetingLocation === next.meetingLocation &&
+    prev.meetingConductor === next.meetingConductor &&
+    prev.attended === next.attended &&
+    prev.meetingColor === next.meetingColor &&
+    prev.uses24HourClock === next.uses24HourClock &&
+    prev.contacts === next.contacts &&
+    prev.isToday === next.isToday
+  );
+}
+
 const DayRowItem = React.memo(function DayRowItem({
   item,
   theme,
@@ -127,23 +251,7 @@ const DayRowItem = React.memo(function DayRowItem({
   onToggleAttendance,
   onAddPress,
   onActivityPress,
-}: {
-  item: DayRow;
-  theme: Theme;
-  locale: string;
-  t: TFn;
-  meetingDay: MeetingScheduleDay | undefined;
-  meetingLocation: string;
-  meetingConductor: string;
-  attended: boolean;
-  meetingColor: string | null;
-  uses24HourClock: boolean | null;
-  contacts: Contact[];
-  isToday: boolean;
-  onToggleAttendance: () => void;
-  onAddPress: () => void;
-  onActivityPress: (activityId: string) => void;
-}) {
+}: DayRowItemProps) {
   const date = item.date;
 
   return (
@@ -260,7 +368,7 @@ const DayRowItem = React.memo(function DayRowItem({
       </View>
     </View>
   );
-});
+}, areDayRowsEqual);
 
 export function ScheduleScreen({ navigation }: { navigation: TabScreenNavProp<'Schedule'> }) {
   const { state, actions } = useApp();
@@ -268,12 +376,17 @@ export function ScheduleScreen({ navigation }: { navigation: TabScreenNavProp<'S
   const theme = themeFor(state.darkMode);
   const locale = INTL_LOCALE_TAGS[state.language];
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const listRef = useRef<FlatList<ScheduleRow>>(null);
-  const localeRef = useRef(locale);
-  localeRef.current = locale;
+  const calendarPagerRef = useRef<FlatList<CalendarPage>>(null);
 
   const [activeFilters, setActiveFilters] = useState<Set<ActivityType | 'meeting'>>(new Set());
-  const [visibleMonthLabel, setVisibleMonthLabel] = useState(() => monthLabel(new Date(), locale));
+  const initialMonthKey = useMemo(() => monthKeyOf(new Date()), []);
+  const visibleMonthKeyRef = useRef(initialMonthKey);
+  const [visibleMonthKey, setVisibleMonthKey] = useState(initialMonthKey);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date());
+  const calendarAnim = useRef(new Animated.Value(0)).current;
   const [isFilterPending, startFilterTransition] = useTransition();
 
   const { rangeStart, rangeEndExclusive } = useMemo(
@@ -289,16 +402,80 @@ export function ScheduleScreen({ navigation }: { navigation: TabScreenNavProp<'S
     [state.meetingSchedule, state.scheduledActivities, activeFilters, rangeStart, rangeEndExclusive]
   );
 
+  const visibleMonthDate = useMemo(() => parseMonthKey(visibleMonthKey), [visibleMonthKey]);
+  const headerMonthDate = calendarOpen ? calendarMonth : visibleMonthDate;
+  const visibleMonthLabel = monthLabel(headerMonthDate, locale);
+  const calendarPages = useMemo(
+    () =>
+      Array.from({ length: RANGE_MONTHS_FORWARD + 1 }, (_, offset) => {
+        const month = monthByOffset(offset);
+        return {
+          key: monthKeyOf(month),
+          month,
+          chart: buildScheduleCalendarMonth(state, month, locale),
+        };
+      }),
+    [state.meetingSchedule, state.scheduledActivities, locale]
+  );
+  const calendarPageWidth = Math.max(1, width - 48);
+  const calendarHeight = scheduleCalendarHeight(calendarMonth);
+
   // The list is anchored at the current week (index 0), so "back to today" is just the top —
   // no item-index measurement needed, which `scrollToIndex` can't do reliably without fixed row heights.
   const scrollToToday = () => {
     listRef.current?.scrollToOffset({ offset: 0, animated: true });
   };
 
+  const openCalendar = () => {
+    const month = new Date(visibleMonthDate.getFullYear(), visibleMonthDate.getMonth(), 1);
+    const offset = monthOffsetFromCurrent(month);
+    setCalendarMonth(month);
+    setCalendarOpen(true);
+    setTimeout(() => {
+      calendarPagerRef.current?.scrollToIndex({ index: Math.max(0, Math.min(RANGE_MONTHS_FORWARD, offset)), animated: false });
+    }, 0);
+    Animated.timing(calendarAnim, {
+      toValue: 1,
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const closeCalendar = () => {
+    Animated.timing(calendarAnim, {
+      toValue: 0,
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start(({ finished }) => {
+      if (finished) setCalendarOpen(false);
+    });
+  };
+
+  const toggleCalendar = () => {
+    if (calendarOpen) closeCalendar();
+    else openCalendar();
+  };
+
+  const selectCalendarDay = (year: number, month0: number, day: number) => {
+    closeCalendar();
+    navigation.navigate('AddActivity', { date: dateKey(new Date(year, month0, day)) });
+  };
+
+  const onCalendarMomentumEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const index = Math.round(event.nativeEvent.contentOffset.x / calendarPageWidth);
+    const page = calendarPages[Math.max(0, Math.min(calendarPages.length - 1, index))];
+    if (page) setCalendarMonth(page.month);
+  };
+
   const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: Array<{ item: ScheduleRow }> }) => {
     const first = viewableItems[0]?.item;
     if (!first) return;
-    setVisibleMonthLabel(monthLabel(rowDate(first), localeRef.current));
+    const nextMonthKey = monthKeyOf(rowDate(first));
+    if (nextMonthKey === visibleMonthKeyRef.current) return;
+    visibleMonthKeyRef.current = nextMonthKey;
+    setVisibleMonthKey(nextMonthKey);
   }).current;
 
   const toggleFilter = (key: ActivityType | 'meeting') => {
@@ -320,7 +497,7 @@ export function ScheduleScreen({ navigation }: { navigation: TabScreenNavProp<'S
   const renderRow = useCallback(
     ({ item }: { item: ScheduleRow }) => {
       if (item.kind === 'month') {
-        return <MonthDividerRow monthDate={item.monthDate} locale={locale} color={theme.text} />;
+        return <MonthDividerRow monthDate={item.monthDate} locale={locale} theme={theme} colorIndex={item.colorIndex} />;
       }
 
       const key = dateKey(item.date);
@@ -370,7 +547,12 @@ export function ScheduleScreen({ navigation }: { navigation: TabScreenNavProp<'S
   return (
     <View style={[styles.flex, { backgroundColor: theme.bg }]}>
       <View style={[styles.headerRow, { paddingTop: insets.top + 12 }]}>
-        <Text style={[styles.title, { color: theme.text }]}>{visibleMonthLabel}</Text>
+        <Pressable onPress={toggleCalendar} hitSlop={8} style={styles.titleButton}>
+          <Text style={[styles.title, { color: theme.text }]}>{visibleMonthLabel}</Text>
+          <Text style={[styles.titleChevron, { color: theme.secondaryText, transform: [{ rotate: calendarOpen ? '180deg' : '0deg' }] }]}>
+            ▾
+          </Text>
+        </Pressable>
         <View style={styles.headerActions}>
           <Pressable onPress={scrollToToday} style={[styles.todayPill, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <Text style={[styles.todayPillLabel, { color: theme.text }]}>{t('schedule.todayPill')}</Text>
@@ -389,10 +571,59 @@ export function ScheduleScreen({ navigation }: { navigation: TabScreenNavProp<'S
             accessibilityLabel={t('schedule.editMeetingLink', { meeting: t('schedule.meetingForFieldService') })}
             style={[styles.iconBtn, { borderColor: theme.border }]}
           >
-            <CalendarIcon color={theme.secondaryText} size={16} />
+            <MeetingScheduleIcon color={theme.secondaryText} size={16} />
           </Pressable>
         </View>
       </View>
+
+      <Animated.View
+        style={[
+          styles.calendarPanel,
+          {
+            height: calendarAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, calendarHeight],
+            }),
+            opacity: calendarAnim,
+          },
+        ]}
+        pointerEvents={calendarOpen ? 'auto' : 'none'}
+      >
+        <View style={styles.calendarCard}>
+          <FlatList
+            ref={calendarPagerRef}
+            horizontal
+            pagingEnabled
+            data={calendarPages}
+            keyExtractor={(item) => item.key}
+            showsHorizontalScrollIndicator={false}
+            bounces={false}
+            overScrollMode="never"
+            getItemLayout={(_, index) => ({ length: calendarPageWidth, offset: calendarPageWidth * index, index })}
+            onMomentumScrollEnd={onCalendarMomentumEnd}
+            onScrollToIndexFailed={({ index }) => {
+              setTimeout(() => {
+                calendarPagerRef.current?.scrollToIndex({ index, animated: false });
+              }, 0);
+            }}
+            renderItem={({ item }) => (
+              <View style={{ width: calendarPageWidth }}>
+                <MonthCalendar
+                  theme={theme}
+                  chart={item.chart}
+                  locale={locale}
+                  canGoPrev={false}
+                  canGoNext={false}
+                  showHeader={false}
+                  onPrevMonth={() => {}}
+                  onNextMonth={() => {}}
+                  onSelectDay={(day) => selectCalendarDay(item.chart.year, item.chart.month0, day)}
+                />
+              </View>
+            )}
+          />
+        </View>
+      </Animated.View>
 
       <View style={styles.filterListWrap}>
         <ScrollView
@@ -423,7 +654,11 @@ export function ScheduleScreen({ navigation }: { navigation: TabScreenNavProp<'S
           data={rows}
           keyExtractor={(r) => r.key}
           renderItem={renderRow}
-          initialNumToRender={20}
+          initialNumToRender={12}
+          maxToRenderPerBatch={8}
+          updateCellsBatchingPeriod={60}
+          windowSize={9}
+          removeClippedSubviews={Platform.OS !== 'web'}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={{ itemVisiblePercentThreshold: 0 }}
           contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + 100 }]}
@@ -435,16 +670,6 @@ export function ScheduleScreen({ navigation }: { navigation: TabScreenNavProp<'S
         ) : null}
       </View>
 
-      <Pressable
-        onPress={() => navigation.navigate('AddActivity')}
-        accessibilityLabel={t('schedule.addActivityAccessibility')}
-        style={[
-          styles.fab,
-          { backgroundColor: theme.accent, shadowColor: theme.accentShadow, bottom: insets.bottom + 20 },
-        ]}
-      >
-        <Text style={[styles.fabLabel, { color: theme.accentText }]}>+</Text>
-      </Pressable>
     </View>
   );
 }
@@ -459,7 +684,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     marginBottom: 12,
   },
-  title: { fontSize: 22, fontWeight: '700', letterSpacing: -0.3, flexShrink: 1 },
+  titleButton: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1, minWidth: 0 },
+  title: { fontSize: 22, fontWeight: '700', letterSpacing: 0, flexShrink: 1 },
+  titleChevron: { fontSize: 14, fontWeight: '700', lineHeight: 16 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   todayPill: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
   todayPillLabel: { fontSize: 12.5, fontWeight: '600' },
@@ -471,16 +698,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  filterListWrap: { height: 44, marginBottom: 12 },
+  filterListWrap: { height: 40, marginBottom: 8 },
   filterList: { flex: 1 },
-  filterListContent: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, gap: 8 },
-  monthDivider: { paddingVertical: 22, alignItems: 'center' },
-  monthDividerText: {
-    fontSize: 24,
-    fontWeight: '600',
-    letterSpacing: 0.2,
-    fontFamily: Platform.select({ ios: 'Georgia', android: 'serif', default: 'Georgia, serif' }),
+  filterListContent: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, gap: 6 },
+  calendarPanel: { overflow: 'hidden', paddingHorizontal: 24 },
+  calendarCard: { paddingTop: 4, paddingBottom: 6 },
+  monthDivider: { paddingTop: 18, paddingBottom: 14, marginHorizontal: -24 },
+  monthDividerGradient: {
+    minHeight: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  monthDividerText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase' },
 
   dayRow: { flexDirection: 'row', gap: 12, paddingTop: 10, paddingBottom: 4 },
   dateCol: { width: 44, alignItems: 'center', gap: 4, paddingTop: 2 },
@@ -516,20 +746,6 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   partnerLabel: { fontSize: 11, fontWeight: '600', flexShrink: 1 },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  fabLabel: { fontSize: 26, fontWeight: '400', lineHeight: 28 },
   filterLoadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.08)',

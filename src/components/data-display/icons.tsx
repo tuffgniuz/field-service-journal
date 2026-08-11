@@ -169,6 +169,18 @@ export function MapIcon({ color, size = 18 }: { color: string; size?: number }) 
   );
 }
 
+export function MeetingScheduleIcon({ color, size = 18 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" {...common} stroke={color}>
+      <Path d="M4.5 11.5 12 5l7.5 6.5" />
+      <Path d="M6.5 10.5v8h11v-8" />
+      <Path d="M9 18.5v-4h6v4" />
+      <Circle cx={16.5} cy={7.5} r={3} />
+      <Path d="M16.5 6v1.7l1.1.8" />
+    </Svg>
+  );
+}
+
 export function DocumentIcon({ color, size = 18 }: { color: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" {...common} stroke={color}>

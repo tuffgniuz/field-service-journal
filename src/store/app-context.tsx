@@ -9,7 +9,6 @@ import type {
   Contact,
   ContactStatus,
   FamilyBibleStudySettings,
-  // GoogleSyncAccount, // Google Drive sync is currently disabled — see src/screens/profile/settings-screen.tsx.
   LanguagePreference,
   MeetingScheduleDay,
   Note,
@@ -172,13 +171,6 @@ interface AppActions {
   addNote: (draft: NoteDraft) => string;
   updateNote: (noteId: string, draft: NoteDraft) => void;
   deleteNote: (noteId: string) => void;
-  // Google Drive sync is currently disabled — see src/screens/profile/settings-screen.tsx.
-  // /** Sets or clears the connected Google Drive sync account. Clearing does not itself revoke tokens — see useGoogleDriveSync's disconnect. */
-  // setGoogleAccount: (account: GoogleSyncAccount | null) => void;
-  // /** Records when a Google Drive sync last completed successfully. */
-  // setLastGoogleSyncAt: (isoTimestamp: string | null) => void;
-  // /** Replaces local state with a backup downloaded from Google Drive, filling in any missing fields from defaults (same merge as loading persisted state on launch). */
-  // restoreFromGoogleBackup: (data: unknown) => void;
   startTimer: () => void;
   stopTimer: () => void;
   completeOnboarding: () => void;
@@ -659,16 +651,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         vibrate(20);
         setState((s) => ({ ...s, notes: s.notes.filter((n) => n.id !== noteId) }));
       },
-
-      // Google Drive sync is currently disabled — see src/screens/profile/settings-screen.tsx.
-      // setGoogleAccount: (account) => setState((s) => ({ ...s, googleAccount: account })),
-
-      // setLastGoogleSyncAt: (isoTimestamp) => setState((s) => ({ ...s, lastGoogleSyncAt: isoTimestamp })),
-
-      // restoreFromGoogleBackup: (data) => {
-      //   const partial = data && typeof data === 'object' ? (data as Partial<AppState>) : {};
-      //   setState((s) => ({ ...defaultState(), ...partial, googleAccount: s.googleAccount, lastGoogleSyncAt: s.lastGoogleSyncAt }));
-      // },
 
       startTimer: () => {
         vibrate(20);

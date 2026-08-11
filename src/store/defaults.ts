@@ -38,8 +38,5 @@ export function defaultState(): AppState {
     scheduledActivityHours: {},
     serviceAreaFile: null,
     notes: [],
-    // Google Drive sync is currently disabled — see src/screens/profile/settings-screen.tsx.
-    // googleAccount: null,
-    // lastGoogleSyncAt: null,
   };
 }
