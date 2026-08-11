@@ -7,11 +7,14 @@ import { AddContactScreen } from '../screens/studies/add-contact-screen';
 import { AddEditVisitScreen } from '../screens/studies/add-edit-visit-screen';
 import { AddActivityScreen } from '../screens/schedule/add-activity-screen';
 import { MeetingScheduleScreen } from '../screens/schedule/meeting-schedule-screen';
+import { ServiceAreaScreen } from '../screens/schedule/service-area-screen';
+import { ReportScreen } from '../screens/report/report-screen';
 import { HistoryScreen } from '../screens/report/history-screen';
 import { AboutScreen } from '../screens/profile/about-screen';
 import { SettingsScreen } from '../screens/profile/settings-screen';
 import { PioneerServiceScreen } from '../screens/profile/pioneer-service-screen';
 import { TimerScreen } from '../screens/log/timer-screen';
+import { NoteEditorScreen } from '../screens/notes/note-editor-screen';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -26,7 +29,10 @@ export function RootNavigator() {
       <Stack.Screen name="AddEditVisit" component={AddEditVisitScreen} options={{ animation: 'fade' }} />
       <Stack.Screen name="AddActivity" component={AddActivityScreen} options={{ animation: 'fade' }} />
       <Stack.Screen name="MeetingSchedule" component={MeetingScheduleScreen} options={{ animation: 'fade' }} />
+      <Stack.Screen name="ServiceArea" component={ServiceAreaScreen} options={{ animation: 'fade' }} />
+      <Stack.Screen name="Report" component={ReportScreen} options={{ animation: 'fade' }} />
       <Stack.Screen name="History" component={HistoryScreen} options={{ animation: 'fade' }} />
+      <Stack.Screen name="NoteEditor" component={NoteEditorScreen} options={{ animation: 'fade' }} />
       <Stack.Screen name="About" component={AboutScreen} options={{ animation: 'fade' }} />
       <Stack.Screen name="Settings" component={SettingsScreen} options={{ animation: 'fade' }} />
       <Stack.Screen name="PioneerService" component={PioneerServiceScreen} options={{ animation: 'fade' }} />

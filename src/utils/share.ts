@@ -1,4 +1,5 @@
 import { Linking, Platform, Share } from 'react-native';
+import * as Sharing from 'expo-sharing';
 
 async function tryOpen(url: string): Promise<boolean> {
   // Prefer a direct openURL attempt over gating on canOpenURL: on Android,
@@ -45,4 +46,30 @@ export async function shareViaSms(text: string, phone?: string): Promise<boolean
 export async function shareViaEmail(text: string, email?: string, subject = 'Field service report'): Promise<boolean> {
   const url = `mailto:${email ?? ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
   return tryOpen(url);
+}
+
+export async function sharePngFile(uri: string, title: string): Promise<boolean> {
+  if (Platform.OS === 'web') {
+    try {
+      const a = document.createElement('a');
+      a.href = uri.startsWith('data:') ? uri : `data:image/png;base64,${uri}`;
+      a.download = 'field-service-report.png';
+      a.rel = 'noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  if (await Sharing.isAvailableAsync()) {
+    try {
+      await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: title });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  return tryOpen(uri);
 }

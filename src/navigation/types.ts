@@ -10,18 +10,21 @@ export type RootStackParamList = {
   AddEditVisit: { contactId: string; visitId?: string };
   AddActivity: { date?: string; activityId?: string } | undefined;
   MeetingSchedule: undefined;
+  ServiceArea: undefined;
   History: undefined;
   About: undefined;
   Settings: undefined;
   PioneerService: undefined;
   Timer: undefined;
+  Report: undefined;
+  NoteEditor: { noteId?: string } | undefined;
 };
 
 export type TabParamList = {
   Log: undefined;
   Studies: undefined;
   Schedule: undefined;
-  Report: undefined;
+  Notes: undefined;
   Profile: undefined;
 };
 

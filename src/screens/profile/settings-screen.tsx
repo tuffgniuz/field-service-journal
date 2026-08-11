@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Alert, Linking, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../../store/app-context';
@@ -8,10 +8,11 @@ import { themeFor } from '../../theme/theme';
 import { KeyboardAvoidingScrollView } from '../../components/layout/keyboard-avoiding-scroll-view';
 import { LabeledInput } from '../../components/inputs/field';
 import { SegmentedControl } from '../../components/inputs/segmented-control';
-import { LANGUAGE_NATIVE_NAMES } from '../../i18n/language';
-import { currentServiceYearLabel } from '../../utils/dates';
+import { LANGUAGE_NATIVE_NAMES, INTL_LOCALE_TAGS } from '../../i18n/language';
+import { currentServiceYearLabel, formatRelativeTime } from '../../utils/dates';
 import { type LanguagePreference, type ThemePreference } from '../../store/types';
 import { exportAppData } from '../../utils/export-data';
+// import { useGoogleDriveSync } from '../../hooks/use-google-drive-sync';
 import type { RootNavProp } from '../../navigation/types';
 
 const LANGUAGE_ORDER: LanguagePreference[] = ['system', 'en', 'nl', 'id'];
@@ -21,7 +22,28 @@ export function SettingsScreen({ navigation }: { navigation: RootNavProp }) {
   const { showToast } = useUi();
   const { t } = useTranslation();
   const theme = themeFor(state.darkMode);
+  const locale = INTL_LOCALE_TAGS[state.language];
   const insets = useSafeAreaInsets();
+  // const googleSync = useGoogleDriveSync();
+
+  // useEffect(() => {
+  //   if (!googleSync.error) return;
+  //   if (googleSync.error === 'not-configured') {
+  //     Alert.alert(t('settings.googleNotConfiguredTitle'), t('settings.googleNotConfiguredMessage'));
+  //   } else {
+  //     showToast(t('settings.googleSyncError'));
+  //   }
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [googleSync.error]);
+
+  // useEffect(() => {
+  //   if (!googleSync.pendingRestore) return;
+  //   Alert.alert(t('settings.googleRestoreTitle'), t('settings.googleRestoreMessage'), [
+  //     { text: t('settings.googleKeepLocal'), style: 'cancel', onPress: googleSync.keepLocalData },
+  //     { text: t('settings.googleRestore'), onPress: googleSync.restoreFromDrive },
+  //   ]);
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [googleSync.pendingRestore]);
 
   const currentLabel = currentServiceYearLabel();
   const [startingHoursText, setStartingHoursText] = useState(() =>
@@ -154,6 +176,57 @@ export function SettingsScreen({ navigation }: { navigation: RootNavProp }) {
         />
       </View>
 
+      {/*
+      <Text style={[styles.sectionLabel, { color: theme.secondaryText }]}>{t('settings.googleSyncSection')}</Text>
+      <View style={[styles.card, { borderColor: theme.border }]}>
+        {googleSync.connected ? (
+          <>
+            <View style={styles.googleRow}>
+              <Text style={{ color: theme.text, fontSize: 14.5, fontWeight: '600', flex: 1 }} numberOfLines={1}>
+                {googleSync.account?.email || t('settings.googleConnected')}
+              </Text>
+              {googleSync.status !== 'idle' ? <ActivityIndicator size="small" color={theme.accent} /> : null}
+            </View>
+            <Text style={{ color: theme.secondaryText, fontSize: 12.5, marginBottom: 14 }}>
+              {googleSync.lastSyncedAt
+                ? t('settings.googleLastSynced', { when: formatRelativeTime(googleSync.lastSyncedAt, locale) })
+                : t('settings.googleNeverSynced')}
+            </Text>
+            <View style={styles.googleActionsRow}>
+              <Pressable onPress={googleSync.syncNow} disabled={googleSync.status !== 'idle'} hitSlop={6}>
+                <Text style={{ color: theme.accent, fontSize: 14, fontWeight: '600' }}>{t('settings.googleSyncNow')}</Text>
+              </Pressable>
+              <Pressable onPress={googleSync.disconnect} disabled={googleSync.status !== 'idle'} hitSlop={6}>
+                <Text style={{ color: theme.danger, fontSize: 14, fontWeight: '600' }}>{t('settings.googleDisconnect')}</Text>
+              </Pressable>
+            </View>
+          </>
+        ) : (
+          <>
+            <Text style={{ color: theme.text, fontSize: 14.5, fontWeight: '600', marginBottom: 4 }}>
+              {t('settings.googleSyncTitle')}
+            </Text>
+            <Text style={{ color: theme.secondaryText, fontSize: 12.5, lineHeight: 17, marginBottom: 16 }}>
+              {t('settings.googleSyncDesc')}
+            </Text>
+            <Pressable
+              onPress={googleSync.connect}
+              disabled={googleSync.status !== 'idle'}
+              style={[styles.connectBtn, { backgroundColor: theme.accent, opacity: googleSync.status !== 'idle' ? 0.6 : 1 }]}
+            >
+              {googleSync.status !== 'idle' ? (
+                <ActivityIndicator size="small" color={theme.accentText} />
+              ) : (
+                <Text style={{ color: theme.accentText, fontSize: 13.5, fontWeight: '700' }}>
+                  {t('settings.googleConnectButton')}
+                </Text>
+              )}
+            </Pressable>
+          </>
+        )}
+      </View>
+      */}
+
       <Text style={[styles.sectionLabel, { color: theme.secondaryText }]}>{t('settings.appearance')}</Text>
       <SegmentedControl
         options={[
@@ -223,6 +296,16 @@ const styles = StyleSheet.create({
   container: { padding: 24, paddingBottom: 100 },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 28 },
   card: { borderWidth: 1, borderRadius: 12, padding: 16, marginBottom: 28 },
+  googleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+  googleActionsRow: { flexDirection: 'row', gap: 20 },
+  connectBtn: {
+    alignSelf: 'flex-start',
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 18,
+    minWidth: 130,
+    alignItems: 'center',
+  },
   back: { fontSize: 22, lineHeight: 22 },
   title: { fontSize: 20, fontWeight: '700' },
   sectionLabel: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 },

@@ -112,6 +112,36 @@ export interface FamilyBibleStudySettings {
   days: number[];
 }
 
+/** A free-form personal note (e.g. a topic with supporting Bible verses) for quick reference during field service. */
+export interface Note {
+  id: string;
+  title: string;
+  /** Free-text tags as typed, trimmed and with empties dropped — not a controlled vocabulary. */
+  tags: string[];
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A user-uploaded scan/photo of their assigned service (territory) area — see utils/service-area.ts for how it's picked and stored. */
+export interface ServiceAreaFile {
+  /**
+   * Base64-encoded file content, stored directly rather than as a
+   * filesystem/cache URI — picker URIs (blob:/cache paths) aren't guaranteed
+   * to survive a reload, especially on web, which made the file unviewable
+   * after upload. This round-trips reliably and renders identically via a
+   * `data:` URI on every platform.
+   */
+  base64: string;
+  /** e.g. "application/pdf", "image/jpeg", "image/png". */
+  mimeType: string;
+  /** Lowercase file extension without the dot — "pdf", "jpg", or "png". */
+  extension: string;
+  /** Original filename, for display. */
+  name: string;
+  uploadedAt: string;
+}
+
 export interface AppState {
   name: string;
   /** file:// URI of the user's chosen avatar photo, or '' if none set. Optional and not part of onboarding. */
@@ -170,7 +200,22 @@ export interface AppState {
    * unchecking can subtract the same amount back out.
    */
   scheduledActivityHours: Record<string, number>;
+  /** The user's uploaded service (territory) area file, or null if none uploaded yet. */
+  serviceAreaFile: ServiceAreaFile | null;
+  /** Personal reference notes (Notes tab), newest-edited first is derived at render time, not stored order. */
+  notes: Note[];
+  // Google Drive sync is currently disabled — see src/screens/profile/settings-screen.tsx.
+  // /** The connected Google account for Drive sync, or null if not connected. Tokens themselves live in SecureStore, not here — see utils/google-drive.ts. */
+  // googleAccount: GoogleSyncAccount | null;
+  // /** ISO timestamp of the last successful sync to Google Drive, or null if never synced. */
+  // lastGoogleSyncAt: string | null;
 }
+
+// /** The Google account connected for Drive sync (Settings > Sync with Google). */
+// export interface GoogleSyncAccount {
+//   email: string;
+//   connectedAt: string;
+// }
 
 /**
  * AppState plus fields derived each render rather than persisted directly, as

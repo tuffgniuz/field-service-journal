@@ -3,6 +3,7 @@ import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, DefaultTheme, DarkTheme, createNavigationContainerRef } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Notifications from 'expo-notifications';
 import "./src/theme/globals.css";
 import { AppProvider, useApp } from './src/store/app-context';
@@ -18,7 +19,7 @@ const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 function navigateToReportTab() {
   if (navigationRef.isReady()) {
-    navigationRef.navigate('Tabs', { screen: 'Report' });
+    navigationRef.navigate('Report');
   }
 }
 
@@ -80,13 +81,15 @@ function Root() {
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <AppProvider>
-        <UiProvider>
-          <Root />
-        </UiProvider>
-      </AppProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={styles.flex}>
+      <SafeAreaProvider>
+        <AppProvider>
+          <UiProvider>
+            <Root />
+          </UiProvider>
+        </AppProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 

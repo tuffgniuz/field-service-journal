@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, type StyleProp, type TextStyle } from 'react-native';
 import type { Theme } from '../../theme/theme';
 
 export function PillButton({
@@ -7,12 +7,14 @@ export function PillButton({
   onPress,
   theme,
   style,
+  labelStyle,
   disabled,
 }: {
   label: string;
   onPress: () => void;
   theme: Theme;
   style?: object;
+  labelStyle?: StyleProp<TextStyle>;
   disabled?: boolean;
 }) {
   return (
@@ -25,7 +27,7 @@ export function PillButton({
         style,
       ]}
     >
-      <Text style={[styles.label, { color: theme.accentText }]}>{label}</Text>
+      <Text style={[styles.label, { color: theme.accentText }, labelStyle]}>{label}</Text>
     </Pressable>
   );
 }

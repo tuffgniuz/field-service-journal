@@ -1,7 +1,19 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  PixelRatio,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
+import { captureRef } from 'react-native-view-shot';
 import { useApp } from '../../store/app-context';
 import { useUi } from '../../store/ui-context';
 import { themeFor } from '../../theme/theme';
@@ -10,19 +22,19 @@ import { PillButton } from '../../components/actions/pill-button';
 import { ClockIcon, ShareIcon, type ShareChannel } from '../../components/data-display/icons';
 import { useRoleMeta } from '../../hooks/use-role-meta';
 import { INTL_LOCALE_TAGS } from '../../i18n/language';
-import { calculateReportHours, isReportOverdue, monthHoursFor, participatedFor, pendingReportMonth, studiesForMonth } from '../../store/selectors';
+import { calculateReportHours, isReportOverdue, participatedFor, pendingReportMonth, studiesForMonth } from '../../store/selectors';
 import { monthLabel, parseMonthKey } from '../../utils/dates';
 import { fmtHours } from '../../utils/format';
 import { hexToRgba } from '../../utils/color';
 import { buildReportText, isPioneerRole, recipientFirstName } from '../../utils/report';
-import { shareViaEmail, shareViaSms, shareViaSystemSheet, shareViaTelegram, shareViaWhatsapp } from '../../utils/share';
+import { sharePngFile, shareViaEmail, shareViaSms, shareViaSystemSheet, shareViaTelegram, shareViaWhatsapp } from '../../utils/share';
 import { translateText } from '../../utils/translate';
 import type { TranslateLanguage } from '../../utils/translate-languages';
 import { TranslateLanguageSheet } from './translate-language-sheet';
 import type { ReportTone } from '../../store/types';
-import type { TabScreenNavProp } from '../../navigation/types';
+import type { RootNavProp } from '../../navigation/types';
 
-export function ReportScreen({ navigation }: { navigation: TabScreenNavProp<'Report'> }) {
+export function ReportScreen({ navigation }: { navigation: RootNavProp }) {
   const { state, actions } = useApp();
   const { showToast } = useUi();
   const { t } = useTranslation();
@@ -30,6 +42,7 @@ export function ReportScreen({ navigation }: { navigation: TabScreenNavProp<'Rep
   const theme = themeFor(state.darkMode);
   const locale = INTL_LOCALE_TAGS[state.language];
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
   const isPioneer = isPioneerRole(state);
   const pendingMonth = useMemo(() => pendingReportMonth(state), [state]);
   const overdue = useMemo(() => isReportOverdue(state), [state]);
@@ -38,12 +51,18 @@ export function ReportScreen({ navigation }: { navigation: TabScreenNavProp<'Rep
   const studies = useMemo(() => studiesForMonth(state, pendingMonth), [state, pendingMonth]);
   const participated = participatedFor(state, pendingMonth);
   const name = recipientFirstName(state);
+  const reportCardMonth = useMemo(() => monthLabel(parseMonthKey(pendingMonth), locale), [pendingMonth, locale]);
+  const reportCardWidth = Math.min(windowWidth - 48, 720);
+  const reportCardScale = Math.min(Math.max(reportCardWidth / 327, 0.84), 1.8);
+  const reportMetricRowHeight = 38 * reportCardScale;
 
   const [editedText, setEditedText] = useState(() => buildReportText(state, pendingMonth));
   const [sourceLanguageCode, setSourceLanguageCode] = useState<string>(state.language);
   const [translatedToName, setTranslatedToName] = useState<string | null>(null);
   const [translating, setTranslating] = useState(false);
+  const [exportingPng, setExportingPng] = useState(false);
   const [languagePickerOpen, setLanguagePickerOpen] = useState(false);
+  const reportCardRef = useRef<View>(null);
   const lastGeneratedRef = useRef(editedText);
 
   // Bottom tabs stay mounted once visited, so a language, role, or recipient
@@ -113,6 +132,27 @@ export function ReportScreen({ navigation }: { navigation: TabScreenNavProp<'Rep
     showToast(t('report.markedSentToast'));
   };
 
+  const exportReportCardPng = async () => {
+    const target = reportCardRef.current;
+    if (!target) return;
+    setExportingPng(true);
+    try {
+      const uri = await captureRef(target, {
+        format: 'png',
+        quality: 1,
+        result: Platform.OS === 'web' ? 'base64' : 'tmpfile',
+        width: 1440 / PixelRatio.get(),
+        height: (1440 / REPORT_CARD_ASPECT_RATIO) / PixelRatio.get(),
+      });
+      const ok = await sharePngFile(uri, t('share.shareTitle'));
+      if (!ok) showToast(t('report.exportPngFailed'));
+    } catch {
+      showToast(t('report.exportPngFailed'));
+    } finally {
+      setExportingPng(false);
+    }
+  };
+
   return (
     <>
     <ScrollView
@@ -120,6 +160,10 @@ export function ReportScreen({ navigation }: { navigation: TabScreenNavProp<'Rep
       contentContainerStyle={[styles.container, { paddingTop: insets.top + 20 }]}
     >
       <View style={styles.headerRow}>
+        <Pressable onPress={() => navigation.goBack()} hitSlop={10} accessibilityLabel={t('common.back')}>
+          <Text style={[styles.back, { color: theme.text }]}>‹</Text>
+        </Pressable>
+        <Text style={[styles.title, { color: theme.text }]}>{t('tabs.report')}</Text>
         <Pressable onPress={() => navigation.navigate('History')}>
           <Text style={[styles.historyLink, { color: theme.accent }]}>{t('report.history')}</Text>
         </Pressable>
@@ -151,44 +195,163 @@ export function ReportScreen({ navigation }: { navigation: TabScreenNavProp<'Rep
         </Pressable>
       ) : null}
 
-      <View style={[styles.card, { backgroundColor: theme.card }]}>
-        {!isPioneer ? (
+      <View
+        ref={reportCardRef}
+        collapsable={false}
+        style={[
+          styles.card,
+          {
+            aspectRatio: REPORT_CARD_ASPECT_RATIO,
+            backgroundColor: theme.card,
+            borderRadius: 24 * reportCardScale,
+            paddingHorizontal: 24 * reportCardScale,
+            paddingVertical: 24 * reportCardScale,
+            width: reportCardWidth,
+          },
+        ]}
+      >
+        <Text
+          adjustsFontSizeToFit
+          numberOfLines={1}
+          selectable
+          style={[
+            styles.cardTitle,
+            { color: theme.text, fontSize: 20 * reportCardScale, lineHeight: 24 * reportCardScale },
+          ]}
+        >
+          {t('report.cardTitle')}
+        </Text>
+        <Text
+          selectable
+          style={[
+            styles.cardSubtitle,
+            {
+              color: theme.secondaryText,
+              fontSize: 12.5 * reportCardScale,
+              lineHeight: 16 * reportCardScale,
+              marginTop: 6 * reportCardScale,
+            },
+          ]}
+        >
+          {reportCardMonth}
+        </Text>
+
+        <View style={{ marginTop: 10 * reportCardScale }}>
           <Pressable
+            accessibilityRole={isPioneer ? undefined : 'checkbox'}
+            accessibilityState={isPioneer ? undefined : { checked: participated }}
+            disabled={isPioneer}
             onPress={() => actions.toggleParticipated(pendingMonth)}
-            style={[styles.cardRow, styles.cardRowBorder, { borderBottomColor: theme.border }]}
+            style={[
+              styles.cardSection,
+              styles.cardSectionDivider,
+              { borderBottomColor: theme.border, height: reportMetricRowHeight },
+            ]}
           >
-            <Text style={[styles.cardRowLabel, { color: theme.text }]}>{t('report.sharedInMinistry')}</Text>
-            <View
+            <Text
+              numberOfLines={1}
+              selectable
               style={[
-                styles.checkbox,
-                { borderColor: theme.accent, backgroundColor: participated ? theme.accent : 'transparent' },
+                styles.cardRowLabel,
+                { color: theme.secondaryText, fontSize: 14 * reportCardScale, paddingRight: 12 * reportCardScale },
               ]}
             >
-              {participated ? <Text style={{ color: theme.accentText, fontSize: 13 }}>✓</Text> : null}
-            </View>
+              {isPioneer ? t('report.fieldServiceHours') : t('report.sharedInMinistry')}
+            </Text>
+            {isPioneer ? (
+              <Text
+                selectable
+                style={[
+                  styles.cardRowValue,
+                  { color: theme.text, fontSize: 25 * reportCardScale, lineHeight: 30 * reportCardScale },
+                ]}
+              >
+                {fmtHours(hours)}
+              </Text>
+            ) : (
+              <View
+                style={[
+                  styles.checkbox,
+                  {
+                    borderColor: theme.accent,
+                    backgroundColor: participated ? theme.accent : 'transparent',
+                    height: 20 * reportCardScale,
+                    width: 20 * reportCardScale,
+                  },
+                ]}
+              >
+                {participated ? <Text style={{ color: theme.accentText, fontSize: 13 * reportCardScale }}>✓</Text> : null}
+              </View>
+            )}
           </Pressable>
-        ) : (
-          <View style={[styles.cardRow, styles.cardRowBorder, { borderBottomColor: theme.border }]}>
-            <Text style={[styles.cardRowLabel, { color: theme.secondaryText }]}>{t('report.fieldServiceHours')}</Text>
-            <Text style={[styles.cardRowValue, { color: theme.text }]}>{fmtHours(hours)}</Text>
+
+          <View style={[styles.cardSection, { height: reportMetricRowHeight }]}>
+            <Text
+              numberOfLines={1}
+              selectable
+              style={[
+                styles.cardRowLabel,
+                { color: theme.secondaryText, fontSize: 14 * reportCardScale, paddingRight: 12 * reportCardScale },
+              ]}
+            >
+              {t('report.bibleStudies')}
+            </Text>
+            <Text
+              selectable
+              style={[
+                styles.cardRowValue,
+                { color: theme.text, fontSize: 25 * reportCardScale, lineHeight: 30 * reportCardScale },
+              ]}
+            >
+              {studies}
+            </Text>
           </View>
-        )}
-        <View style={[styles.cardRow, reportHoursCalc.remainder > 0 ? styles.cardRowBorder : null, { borderBottomColor: theme.border }]}>
-          <Text style={[styles.cardRowLabel, { color: theme.secondaryText }]}>{t('report.bibleStudies')}</Text>
-          <Text style={[styles.cardRowValue, { color: theme.text }]}>{studies}</Text>
         </View>
 
-        {reportHoursCalc.remainder > 0 ? (
-          <View style={styles.rolloverRow}>
-            <Text style={[styles.rolloverText, { color: theme.secondaryText }]}>
-              {t('report.rolloverNotice', {
-                remainder: fmtHours(reportHoursCalc.remainder),
-                total: fmtHours(reportHoursCalc.totalAccumulated),
-              })}
+        {state.creditHoursEnabled && state.creditHoursAmount > 0 && isPioneer ? (
+          <View style={[styles.creditBlock, { paddingTop: 12 * reportCardScale }]}>
+            <Text
+              numberOfLines={2}
+              selectable
+              style={[
+                styles.creditStatement,
+                {
+                  color: theme.secondaryText,
+                  fontSize: 12.5 * reportCardScale,
+                  lineHeight: 17 * reportCardScale,
+                },
+              ]}
+            >
+              <Trans
+                i18nKey="report.creditHoursStatementCard"
+                values={{
+                  hours: fmtHours(state.creditHoursAmount),
+                  source: state.creditHoursSource.trim() || t('report.creditHoursSourceFallback'),
+                }}
+                components={{ bold: <Text style={[styles.creditHoursBold, { color: theme.text }]} /> }}
+              />
             </Text>
           </View>
         ) : null}
+
       </View>
+
+      {reportHoursCalc.remainder > 0 ? (
+        <Text style={[styles.rolloverText, { color: theme.secondaryText }]}>
+          {t('report.rolloverNotice', {
+            remainder: fmtHours(reportHoursCalc.remainder),
+            total: fmtHours(reportHoursCalc.totalAccumulated),
+          })}
+        </Text>
+      ) : null}
+
+      <PillButton
+        label={exportingPng ? t('report.exportPngWorking') : t('report.exportPng')}
+        onPress={exportReportCardPng}
+        theme={theme}
+        disabled={exportingPng}
+        style={{ marginBottom: 18 }}
+      />
 
       <SegmentedControl
         options={[
@@ -255,16 +418,31 @@ export function ReportScreen({ navigation }: { navigation: TabScreenNavProp<'Rep
   );
 }
 
+const REPORT_CARD_ASPECT_RATIO = 1.56;
+
 const styles = StyleSheet.create({
   container: { padding: 24, paddingBottom: 110 },
-  headerRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'flex-end', marginBottom: 6 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  back: { fontSize: 22, lineHeight: 22 },
+  title: { fontSize: 15.5, fontWeight: '700' },
   historyLink: { fontSize: 13, fontWeight: '600' },
   subLabel: { fontSize: 13, marginBottom: 24 },
-  card: { borderRadius: 16, padding: 22, marginBottom: 20 },
-  cardRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 14 },
-  cardRowBorder: { marginBottom: 14, borderBottomWidth: 1 },
-  cardRowLabel: { fontSize: 14.5 },
-  cardRowValue: { fontSize: 22, fontWeight: '700' },
+  card: {
+    alignSelf: 'center',
+    borderCurve: 'continuous',
+    marginBottom: 20,
+    overflow: 'hidden',
+  },
+  cardTitle: { fontWeight: '800', letterSpacing: -0.55 },
+  cardSubtitle: { letterSpacing: -0.1 },
+  cardSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cardSectionDivider: { borderBottomWidth: StyleSheet.hairlineWidth },
+  cardRowLabel: { flex: 1, fontWeight: '400' },
+  cardRowValue: { fontVariant: ['tabular-nums'], fontWeight: '800', letterSpacing: -0.8 },
   checkbox: { width: 20, height: 20, borderRadius: 5, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   reminderCard: {
     flexDirection: 'row',
@@ -284,8 +462,10 @@ const styles = StyleSheet.create({
   translatingRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   previewText: { fontSize: 13, lineHeight: 20.8, padding: 0, textAlignVertical: 'top' },
   translatedCaption: { fontSize: 11, marginTop: 8, fontStyle: 'italic' },
+  creditBlock: { marginTop: 'auto' },
+  creditStatement: { letterSpacing: -0.1 },
+  creditHoursBold: { fontWeight: '800' },
   iconRow: { flexDirection: 'row', justifyContent: 'center', gap: 28 },
   iconBtn: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  rolloverRow: { paddingTop: 10 },
-  rolloverText: { fontSize: 12, lineHeight: 16, fontStyle: 'italic', textAlign: 'center' },
+  rolloverText: { fontSize: 12, lineHeight: 16, fontStyle: 'italic', textAlign: 'center', marginBottom: 14 },
 });

@@ -36,5 +36,10 @@ export function defaultState(): AppState {
     creditHoursAmount: 0,
     creditHoursSource: '',
     scheduledActivityHours: {},
+    serviceAreaFile: null,
+    notes: [],
+    // Google Drive sync is currently disabled — see src/screens/profile/settings-screen.tsx.
+    // googleAccount: null,
+    // lastGoogleSyncAt: null,
   };
 }

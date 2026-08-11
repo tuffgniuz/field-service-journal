@@ -6,10 +6,11 @@ import { useApp } from '../../store/app-context';
 import { themeFor } from '../../theme/theme';
 import { useStatusMeta } from '../../hooks/use-status-meta';
 import { lastVisitOf, sortedContacts } from '../../store/selectors';
-import { daysSince, formatShortDate, formatRelativeTime } from '../../utils/dates';
+import { formatRelativeTime } from '../../utils/dates';
 import { statusColor } from '../../utils/status-color';
 import { ContactAvatar } from '../../components/data-display/contact-avatar';
 import { INTL_LOCALE_TAGS } from '../../i18n/language';
+import { publicationTitle, studyItemsForPublication, studyProgressSummary } from '../../utils/publications';
 import type { TabScreenNavProp } from '../../navigation/types';
 
 export function StudiesListScreen({ navigation }: { navigation: TabScreenNavProp<'Studies'> }) {
@@ -47,6 +48,8 @@ export function StudiesListScreen({ navigation }: { navigation: TabScreenNavProp
           renderItem={({ item: c }) => {
             const lv = lastVisitOf(c);
             const color = statusColor(theme, c.status);
+            const studyItems = c.status === 'bible_study' && c.publication ? studyItemsForPublication(c.publication) : [];
+            const studySummary = studyItems.length ? studyProgressSummary(studyItems, c.studyProgress) : null;
             return (
               <Pressable
                 onPress={() => navigation.navigate('ContactDetail', { contactId: c.id })}
@@ -67,6 +70,26 @@ export function StudiesListScreen({ navigation }: { navigation: TabScreenNavProp
                       ? formatRelativeTime(lv.date, locale)
                       : t('studies.noVisitsYet')}
                   </Text>
+                  {studySummary ? (
+                    <View style={styles.studyWrap}>
+                      <View style={styles.studyHeaderRow}>
+                        <Text style={[styles.studyLabel, { color: theme.secondaryText }]}>
+                          {publicationTitle(c.publication ?? '', state.language)}
+                        </Text>
+                        <Text style={[styles.studyPercent, { color: theme.secondaryText }]}>
+                          {t('studies.studyProgressPercent', { percent: studySummary.percent })}
+                        </Text>
+                      </View>
+                      <View style={[styles.studyTrack, { backgroundColor: theme.border }]}>
+                        <View
+                          style={[
+                            styles.studyFill,
+                            { backgroundColor: theme.accent, width: `${studySummary.percent}%` },
+                          ]}
+                        />
+                      </View>
+                    </View>
+                  ) : null}
                 </View>
               </Pressable>
             );
@@ -105,5 +128,10 @@ const styles = StyleSheet.create({
   name: { fontSize: 15.5, fontWeight: '600', flex: 1 },
   statusLabel: { fontSize: 12, fontWeight: '600', flexShrink: 0 },
   since: { fontSize: 12.5, marginBottom: 3 },
-  snippet: { fontSize: 13, lineHeight: 18 },
+  studyWrap: { marginTop: 6, gap: 6 },
+  studyHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  studyLabel: { fontSize: 11.5, fontWeight: '600', flex: 1 },
+  studyPercent: { fontSize: 11.5, fontWeight: '600', flexShrink: 0 },
+  studyTrack: { height: 6, borderRadius: 999, overflow: 'hidden' },
+  studyFill: { height: '100%', borderRadius: 999 },
 });

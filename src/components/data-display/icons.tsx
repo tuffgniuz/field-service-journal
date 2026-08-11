@@ -8,7 +8,7 @@ export function TabIcon({
   color,
   size = 22,
 }: {
-  name: 'log' | 'studies' | 'schedule' | 'report' | 'profile';
+  name: 'log' | 'studies' | 'schedule' | 'notes' | 'profile';
   color: string;
   size?: number;
 }) {
@@ -38,11 +38,11 @@ export function TabIcon({
       </Svg>
     );
   }
-  if (name === 'report') {
+  if (name === 'notes') {
     return (
       <Svg width={size} height={size} viewBox="0 0 24 24" {...common} stroke={color}>
-        <Path d="M4 20L20 4" />
-        <Path d="M20 4L13 20L10.5 13L4 10.5Z" />
+        <Path d="M6 3.5h12a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1Z" />
+        <Path d="M8 8.5h8M8 12h8M8 15.5h5" />
       </Svg>
     );
   }
@@ -50,6 +50,15 @@ export function TabIcon({
     <Svg width={size} height={size} viewBox="0 0 24 24" {...common} stroke={color}>
       <Circle cx={12} cy={8.5} r={3.6} />
       <Path d="M4.5 20.2c0-4.2 3.2-6.4 7.5-6.4s7.5 2.2 7.5 6.4" />
+    </Svg>
+  );
+}
+
+export function ReportIcon({ color, size = 20 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" {...common} stroke={color}>
+      <Path d="M4 20L20 4" />
+      <Path d="M20 4L13 20L10.5 13L4 10.5Z" />
     </Svg>
   );
 }
@@ -144,6 +153,28 @@ export function CalendarIcon({ color, size = 18 }: { color: string; size?: numbe
     <Svg width={size} height={size} viewBox="0 0 24 24" {...common} stroke={color}>
       <Path d="M4 5h16a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" />
       <Path d="M16 3v4M8 3v4M3 10h18" />
+    </Svg>
+  );
+}
+
+export function MapIcon({ color, size = 18 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" {...common} stroke={color}>
+      <Path
+        d="M9 4.5 4 6.5v13l5-2 6 2 5-2v-13l-5 2-6-2Z"
+        strokeLinejoin="round"
+      />
+      <Path d="M9 4.5v13M15 6.5v13" />
+    </Svg>
+  );
+}
+
+export function DocumentIcon({ color, size = 18 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" {...common} stroke={color}>
+      <Path d="M6 3.5h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-16a1 1 0 0 1 1-1Z" strokeLinejoin="round" />
+      <Path d="M15 3.5v4h4" strokeLinejoin="round" />
+      <Path d="M8.5 13h7M8.5 16.5h7" />
     </Svg>
   );
 }

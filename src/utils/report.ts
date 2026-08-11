@@ -1,7 +1,7 @@
 import i18next from '../i18n';
 import { INTL_LOCALE_TAGS } from '../i18n/language';
 import type { AppState, RuntimeState } from '../store/types';
-import { calculateReportHours, monthHoursFor, participatedFor, studiesForMonth } from '../store/selectors';
+import { calculateReportHours, participatedFor, studiesForMonth } from '../store/selectors';
 import { currentMonthKey, monthLabel, parseMonthKey } from './dates';
 import { fmtHours } from './format';
 
@@ -14,7 +14,14 @@ export function recipientFirstName(state: AppState): string {
   return stripped ? stripped.split(' ')[0] : '';
 }
 
-export function buildReportText(state: RuntimeState, monthKey: string): string {
+export interface FormalReportParts {
+  greeting: string;
+  title: string;
+  lines: string[];
+  creditStatement: string | null;
+}
+
+export function buildFormalReportParts(state: RuntimeState, monthKey: string): FormalReportParts {
   const locale = INTL_LOCALE_TAGS[state.language];
   const calc = calculateReportHours(state, monthKey);
   const hours = calc.reportHours;
@@ -22,42 +29,69 @@ export function buildReportText(state: RuntimeState, monthKey: string): string {
   const isPioneer = isPioneerRole(state);
   const monthDate = parseMonthKey(monthKey);
   const monthName = monthLabel(monthDate, locale);
-  const monthShort = monthDate.toLocaleDateString(locale, { month: 'long' });
+  const shared = participatedFor(state, monthKey) ? i18next.t('common.yes') : i18next.t('common.no');
   const name = recipientFirstName(state) || i18next.t('report.recipientFallbackName');
 
-  const hasStudies = studies > 0;
+  const lines: string[] = [];
+  if (isPioneer) lines.push(`${i18next.t('report.fieldServiceHours')}: ${fmtHours(hours)}`);
+  else lines.push(`${i18next.t('report.sharedInMinistry')}: ${shared}`);
+  if (studies > 0) lines.push(`${i18next.t('report.bibleStudies')}: ${studies}`);
 
-  // Credit hours are only ever folded into `hours` for the current month (see
-  // `creditHoursForCurrentMonth`), so the explanatory note only makes sense then.
-  const creditNote =
+  const creditStatement =
     isPioneer && state.creditHoursEnabled && state.creditHoursAmount > 0 && monthKey === currentMonthKey()
-      ? ' ' +
-        i18next.t('report.creditHoursNote', {
+      ? i18next.t('report.creditHoursStatement', {
           hours: fmtHours(state.creditHoursAmount),
           source: state.creditHoursSource.trim() || i18next.t('report.creditHoursSourceFallback'),
         })
-      : '';
+      : null;
+
+  return {
+    greeting: i18next.t('report.formalGreeting', { name }),
+    title: i18next.t('report.formalTitle', { month: monthName }),
+    lines,
+    creditStatement,
+  };
+}
+
+export function buildReportText(state: RuntimeState, monthKey: string): string {
+  const locale = INTL_LOCALE_TAGS[state.language];
+  const isPioneer = isPioneerRole(state);
+  const calc = calculateReportHours(state, monthKey);
+  const hours = calc.reportHours;
+  const studies = studiesForMonth(state, monthKey);
+  const monthDate = parseMonthKey(monthKey);
+  const monthShort = monthDate.toLocaleDateString(locale, { month: 'long' });
+  const name = recipientFirstName(state) || i18next.t('report.recipientFallbackName');
+  const formal = buildFormalReportParts(state, monthKey);
+  const hasStudies = studies > 0;
 
   if (state.reportTone === 'formal') {
-    if (isPioneer) {
-      return (
-        (hasStudies
-          ? i18next.t('report.formalPioneer', { month: monthName, hours: String(hours), studies })
-          : i18next.t('report.formalPioneerNoStudies', { month: monthName, hours: String(hours) })) + creditNote
-      );
-    }
-    const shared = participatedFor(state, monthKey) ? i18next.t('common.yes') : i18next.t('common.no');
-    return hasStudies
-      ? i18next.t('report.formalPublisher', { month: monthName, shared, studies })
-      : i18next.t('report.formalPublisherNoStudies', { month: monthName, shared });
+    return [
+      formal.greeting,
+      '',
+      formal.title,
+      ...formal.lines,
+      formal.creditStatement ?? null,
+    ]
+      .filter((line): line is string => line !== null)
+      .join('\n');
   }
 
   if (isPioneer) {
     return (
       (hasStudies
-        ? i18next.t('report.conversationalPioneer', { name, month: monthShort, hours: String(hours), count: studies })
-        : i18next.t('report.conversationalPioneerNoStudies', { name, month: monthShort, hours: String(hours) })) +
-      creditNote
+        ? i18next.t('report.conversationalPioneer', {
+            name,
+            month: monthShort,
+            hours: String(hours),
+            count: studies,
+          })
+        : i18next.t('report.conversationalPioneerNoStudies', {
+            name,
+            month: monthShort,
+            hours: String(hours),
+          })) +
+      (formal.creditStatement ? ` ${formal.creditStatement}` : '')
     );
   }
   return hasStudies

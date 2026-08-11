@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
@@ -12,9 +12,19 @@ import { RecentVisitsCard } from './recent-visits-card';
 import { UpcomingActivitiesCard } from './upcoming-activities-card';
 import { ActivityHoursSheet } from './activity-hours-sheet';
 import { MonthlyHeroCarousel } from './monthly-hero-carousel';
-import { buildChartMonth, liveTodayHours, recentVisits, sortedContacts, studyContacts, type RecentVisit } from '../../store/selectors';
+import { ReportIcon, ChevronRightIcon } from '../../components/data-display/icons';
+import {
+  buildChartMonth,
+  isReportOverdue,
+  liveTodayHours,
+  recentVisits,
+  sortedContacts,
+  studyContacts,
+  type RecentVisit,
+} from '../../store/selectors';
 import { upcomingActivities, type ScheduledActivityOccurrence } from '../../utils/schedule';
 import { dateKey, todayKey } from '../../utils/dates';
+import { hexToRgba } from '../../utils/color';
 import { INTL_LOCALE_TAGS } from '../../i18n/language';
 import type { TabScreenNavProp } from '../../navigation/types';
 
@@ -51,6 +61,7 @@ export function LogScreen({ navigation }: { navigation: TabScreenNavProp<'Log'> 
     }, [state.timerStartedAt, navigation])
   );
 
+  const reportOverdue = useMemo(() => isReportOverdue(state, now), [state, now]);
   const todayHours = useMemo(() => liveTodayHours(state, now), [state, now]);
   const chart = useMemo(() => buildChartMonth(state, chartOffset, locale, now), [state, chartOffset, locale, now]);
   const recent = useMemo(() => recentVisits(state.contacts, 8), [state.contacts]);
@@ -77,6 +88,25 @@ export function LogScreen({ navigation }: { navigation: TabScreenNavProp<'Log'> 
         />
 
         <View style={styles.container}>
+          <Pressable
+            onPress={() => navigation.navigate('Report')}
+            style={[
+              styles.reportCard,
+              reportOverdue
+                ? { backgroundColor: hexToRgba(theme.gold, 0.14), borderColor: hexToRgba(theme.gold, 0.35) }
+                : { backgroundColor: theme.card, borderColor: theme.border },
+            ]}
+          >
+            <ReportIcon color={reportOverdue ? theme.gold : theme.secondaryText} size={18} />
+            <View style={styles.reportCardText}>
+              <Text style={[styles.reportCardTitle, { color: theme.text }]}>{t('log.reportCardTitle')}</Text>
+              <Text style={[styles.reportCardSubtitle, { color: theme.secondaryText }]}>
+                {t(reportOverdue ? 'log.reportCardSubtitleOverdue' : 'log.reportCardSubtitle')}
+              </Text>
+            </View>
+            <ChevronRightIcon color={theme.secondaryText} />
+          </Pressable>
+
           <UpcomingActivitiesCard
             theme={theme}
             locale={locale}
@@ -155,4 +185,16 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   container: { paddingHorizontal: 24, marginTop: 20 },
   calendarWrap: { borderWidth: 1, borderRadius: 12, padding: 16, marginBottom: 20 },
+  reportCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 20,
+  },
+  reportCardText: { flex: 1, gap: 2 },
+  reportCardTitle: { fontSize: 13.5, fontWeight: '600' },
+  reportCardSubtitle: { fontSize: 12 },
 });

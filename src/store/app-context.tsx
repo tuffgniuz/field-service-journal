@@ -9,12 +9,15 @@ import type {
   Contact,
   ContactStatus,
   FamilyBibleStudySettings,
+  // GoogleSyncAccount, // Google Drive sync is currently disabled — see src/screens/profile/settings-screen.tsx.
   LanguagePreference,
   MeetingScheduleDay,
+  Note,
   RecurringRule,
   ReportTone,
   RuntimeState,
   ScheduledActivity,
+  ServiceAreaFile,
   ThemePreference,
   Visit,
 } from './types';
@@ -61,6 +64,26 @@ interface ContactDraft {
   status: ContactStatus;
   publication?: string;
   address?: string;
+}
+
+interface NoteDraft {
+  title: string;
+  /** Raw comma-separated input from the Tags field — split/trimmed/deduped on save. */
+  tags: string;
+  body: string;
+}
+
+function parseTags(raw: string): string[] {
+  const seen = new Set<string>();
+  const tags: string[] = [];
+  for (const part of raw.split(',')) {
+    const tag = part.trim();
+    if (tag && !seen.has(tag)) {
+      seen.add(tag);
+      tags.push(tag);
+    }
+  }
+  return tags;
 }
 
 interface ActivityDraft {
@@ -144,6 +167,18 @@ interface AppActions {
   setCreditHoursAmount: (hours: number) => void;
   /** Sets the free-text explanation of where the credit hours come from. */
   setCreditHoursSource: (source: string) => void;
+  /** Sets or clears the user's uploaded service (territory) area file. */
+  setServiceAreaFile: (file: ServiceAreaFile | null) => void;
+  addNote: (draft: NoteDraft) => string;
+  updateNote: (noteId: string, draft: NoteDraft) => void;
+  deleteNote: (noteId: string) => void;
+  // Google Drive sync is currently disabled — see src/screens/profile/settings-screen.tsx.
+  // /** Sets or clears the connected Google Drive sync account. Clearing does not itself revoke tokens — see useGoogleDriveSync's disconnect. */
+  // setGoogleAccount: (account: GoogleSyncAccount | null) => void;
+  // /** Records when a Google Drive sync last completed successfully. */
+  // setLastGoogleSyncAt: (isoTimestamp: string | null) => void;
+  // /** Replaces local state with a backup downloaded from Google Drive, filling in any missing fields from defaults (same merge as loading persisted state on launch). */
+  // restoreFromGoogleBackup: (data: unknown) => void;
   startTimer: () => void;
   stopTimer: () => void;
   completeOnboarding: () => void;
@@ -593,6 +628,47 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setState((s) => ({ ...s, creditHoursAmount: Math.min(Math.max(0, hours), MAX_CREDIT_HOURS) })),
 
       setCreditHoursSource: (source) => setState((s) => ({ ...s, creditHoursSource: source })),
+
+      setServiceAreaFile: (file) => setState((s) => ({ ...s, serviceAreaFile: file })),
+
+      addNote: (draft) => {
+        const id = 'note' + Date.now();
+        const now = new Date().toISOString();
+        vibrate(20);
+        setState((s) => ({
+          ...s,
+          notes: [
+            ...s.notes,
+            { id, title: draft.title.trim(), tags: parseTags(draft.tags), body: draft.body, createdAt: now, updatedAt: now },
+          ],
+        }));
+        return id;
+      },
+
+      updateNote: (noteId, draft) =>
+        setState((s) => ({
+          ...s,
+          notes: s.notes.map((n) =>
+            n.id === noteId
+              ? { ...n, title: draft.title.trim(), tags: parseTags(draft.tags), body: draft.body, updatedAt: new Date().toISOString() }
+              : n
+          ),
+        })),
+
+      deleteNote: (noteId) => {
+        vibrate(20);
+        setState((s) => ({ ...s, notes: s.notes.filter((n) => n.id !== noteId) }));
+      },
+
+      // Google Drive sync is currently disabled — see src/screens/profile/settings-screen.tsx.
+      // setGoogleAccount: (account) => setState((s) => ({ ...s, googleAccount: account })),
+
+      // setLastGoogleSyncAt: (isoTimestamp) => setState((s) => ({ ...s, lastGoogleSyncAt: isoTimestamp })),
+
+      // restoreFromGoogleBackup: (data) => {
+      //   const partial = data && typeof data === 'object' ? (data as Partial<AppState>) : {};
+      //   setState((s) => ({ ...defaultState(), ...partial, googleAccount: s.googleAccount, lastGoogleSyncAt: s.lastGoogleSyncAt }));
+      // },
 
       startTimer: () => {
         vibrate(20);

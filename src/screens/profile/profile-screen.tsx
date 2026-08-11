@@ -52,7 +52,9 @@ export function ProfileScreen({
   );
   const goal = useMemo(() => pioneerGoalFor(state), [state]);
   const pioneerServiceButtonLabel =
-    state.role === "publisher" ? t("profile.startPioneerService") : t("profile.configurePioneerService");
+    state.effectiveRole === "publisher"
+      ? t("profile.startPioneerService")
+      : t("profile.configurePioneerService");
   const progress = useMemo(() => serviceYearProgressFor(state), [state]);
   const auxProgress = useMemo(() => auxPioneerProgressFor(state), [state]);
   const auxPioneerConfigured =
@@ -263,24 +265,6 @@ export function ProfileScreen({
                 </>
               )}
             </View>
-
-            {!goal ? (
-              <Pressable
-                onPress={() => navigation.navigate("PioneerService")}
-                hitSlop={8}
-                accessibilityLabel={pioneerServiceButtonLabel}
-                style={[
-                  styles.auxActionBtn,
-                  { borderColor: theme.accent, backgroundColor: theme.accent },
-                ]}
-              >
-                <Text
-                  style={[styles.auxActionLabel, { color: theme.accentText }]}
-                >
-                  {pioneerServiceButtonLabel}
-                </Text>
-              </Pressable>
-            ) : null}
           </View>
 
           {goal ? (
@@ -343,15 +327,25 @@ export function ProfileScreen({
                   ]}
                 />
               </View>
-
-              <PillButton
-                label={t("profile.configurePioneerService")}
-                onPress={() => navigation.navigate("PioneerService")}
-                theme={theme}
-                style={{ marginTop: 16 }}
-              />
             </>
           ) : null}
+
+          <View style={[styles.actionsRow, { marginTop: goal ? 16 : 20 }]}>
+            <PillButton
+              label={t("profile.reportLink")}
+              onPress={() => navigation.navigate("Report")}
+              theme={theme}
+              style={styles.actionBtn}
+              labelStyle={styles.actionBtnLabel}
+            />
+            <PillButton
+              label={pioneerServiceButtonLabel}
+              onPress={() => navigation.navigate("PioneerService")}
+              theme={theme}
+              style={styles.actionBtn}
+              labelStyle={styles.actionBtnLabel}
+            />
+          </View>
         </View>
 
         <View
@@ -405,19 +399,14 @@ const styles = StyleSheet.create({
   avatarImage: { width: "100%", height: "100%" },
   card: { borderWidth: 1, borderRadius: 12, padding: 16, marginBottom: 28 },
   noBorder: { borderWidth: 0 },
+  actionsRow: { flexDirection: "row", gap: 10 },
+  actionBtn: { flex: 1 },
+  actionBtnLabel: { fontSize: 13.5 },
   heatmapCard: { marginBottom: 0 },
   cardHeaderRow: { flexDirection: "row", alignItems: "center" },
   cardHeaderText: { flex: 1, marginLeft: 14 },
   cardHeaderTitle: { fontSize: 14.5, fontWeight: "600" },
   cardHeaderCaption: { fontSize: 12, marginTop: 3 },
-  configureRow: { flexDirection: "row", justifyContent: "flex-end", marginTop: 14 },
-  auxActionBtn: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  auxActionLabel: { fontSize: 12.5, fontWeight: "700" },
   progressTrack: {
     height: 8,
     borderRadius: 4,

@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../../store/app-context';
 import { themeFor, type Theme } from '../../theme/theme';
-import { ActivityTypeIcon, CalendarIcon, CheckIcon, PartnerIcon } from '../../components/data-display/icons';
+import { ActivityTypeIcon, CalendarIcon, CheckIcon, MapIcon, PartnerIcon } from '../../components/data-display/icons';
 import { Chip } from '../../components/data-display/chip';
 import { dateKey, monthByOffset, monthKeyOf, monthLabel, todayKey } from '../../utils/dates';
 import {
@@ -374,6 +374,14 @@ export function ScheduleScreen({ navigation }: { navigation: TabScreenNavProp<'S
         <View style={styles.headerActions}>
           <Pressable onPress={scrollToToday} style={[styles.todayPill, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <Text style={[styles.todayPillLabel, { color: theme.text }]}>{t('schedule.todayPill')}</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => navigation.navigate('ServiceArea')}
+            hitSlop={8}
+            accessibilityLabel={t('schedule.serviceAreaAccessibility')}
+            style={[styles.iconBtn, { borderColor: theme.border }]}
+          >
+            <MapIcon color={theme.secondaryText} size={16} />
           </Pressable>
           <Pressable
             onPress={() => navigation.navigate('MeetingSchedule')}

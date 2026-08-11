@@ -18,55 +18,6 @@ import {
 } from '../../utils/publications';
 import type { RootNavProp, RootStackParamList } from '../../navigation/types';
 
-type Row = { kind: 'item'; item: StudyItem } | { kind: 'collapsed'; key: string; start: number; end: number; count: number };
-
-function buildSectionRows(
-  items: StudyItem[],
-  completed: Set<string>,
-  nextItemId: string | null,
-  revealed: Set<string>
-): Row[] {
-  const rows: Row[] = [];
-  let buffer: StudyItem[] = [];
-
-  const flush = (keepLastIndividual: boolean) => {
-    if (buffer.length === 0) return;
-    const toCollapse = keepLastIndividual ? buffer.slice(0, -1) : buffer;
-    const last = keepLastIndividual ? buffer[buffer.length - 1] : null;
-    const key = toCollapse.length ? `${toCollapse[0].id}..${toCollapse[toCollapse.length - 1].id}` : '';
-    if (toCollapse.length >= 3 && !revealed.has(key)) {
-      rows.push({
-        kind: 'collapsed',
-        key,
-        start: toCollapse[0].lesson!,
-        end: toCollapse[toCollapse.length - 1].lesson!,
-        count: toCollapse.length,
-      });
-    } else {
-      toCollapse.forEach((item) => rows.push({ kind: 'item', item }));
-    }
-    if (last) rows.push({ kind: 'item', item: last });
-    buffer = [];
-  };
-
-  for (const item of items) {
-    if (item.id === nextItemId) {
-      flush(true);
-      rows.push({ kind: 'item', item });
-      continue;
-    }
-    if (item.kind === 'lesson' && completed.has(item.id)) {
-      buffer.push(item);
-      continue;
-    }
-    flush(false);
-    rows.push({ kind: 'item', item });
-  }
-  flush(false);
-
-  return rows;
-}
-
 export function StudyProgressScreen({
   navigation,
   route,
@@ -91,7 +42,6 @@ export function StudyProgressScreen({
   const [expandedSections, setExpandedSections] = useState<Record<number, boolean>>(() => ({
     [summary.currentSection]: true,
   }));
-  const [revealedRanges, setRevealedRanges] = useState<Set<string>>(() => new Set());
 
   if (!contact || !contact.publication || items.length === 0) {
     return (
@@ -103,10 +53,6 @@ export function StudyProgressScreen({
 
   const toggleSection = (section: number) => {
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
-  };
-
-  const reveal = (key: string) => {
-    setRevealedRanges((prev) => new Set(prev).add(key));
   };
 
   return (
@@ -149,7 +95,6 @@ export function StudyProgressScreen({
         const sectionItems = items.filter((i) => i.section === section);
         const progress = sectionProgress(items, contact.studyProgress, section);
         const expanded = !!expandedSections[section];
-        const rows = expanded ? buildSectionRows(sectionItems, completedSet, summary.nextItemId, revealedRanges) : [];
 
         return (
           <View key={section} style={[styles.sectionBlock, { borderColor: theme.border }]}>
@@ -173,20 +118,7 @@ export function StudyProgressScreen({
             </Pressable>
 
             {expanded
-              ? rows.map((row) => {
-                  if (row.kind === 'collapsed') {
-                    return (
-                      <Pressable key={row.key} onPress={() => reveal(row.key)} style={styles.collapsedRow}>
-                        <View style={[styles.collapsedLine, { backgroundColor: theme.border }]} />
-                        <Text style={[styles.collapsedText, { color: theme.secondaryText }]}>
-                          {t('studyProgress.completedRange', { start: row.start, end: row.end })}
-                        </Text>
-                        <View style={[styles.collapsedLine, { backgroundColor: theme.border }]} />
-                      </Pressable>
-                    );
-                  }
-
-                  const item = row.item;
+              ? sectionItems.map((item) => {
                   const done = completedSet.has(item.id);
                   const isNext = item.id === summary.nextItemId;
                   const label =
@@ -264,9 +196,6 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 15.5, fontWeight: '700' },
   countBadge: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 10 },
   countBadgeText: { fontSize: 12, fontWeight: '700' },
-  collapsedRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10 },
-  collapsedLine: { flex: 1, height: StyleSheet.hairlineWidth },
-  collapsedText: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.3 },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 9 },
   checkbox: {
     width: 22,

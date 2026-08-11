@@ -17,7 +17,7 @@ import { themeFor, type Theme } from '../theme/theme';
 import { TabIcon } from '../components/data-display/icons';
 import type { TabParamList } from './types';
 
-const ICONS = { Log: 'log', Studies: 'studies', Schedule: 'schedule', Report: 'report', Profile: 'profile' } as const;
+const ICONS = { Log: 'log', Studies: 'studies', Schedule: 'schedule', Notes: 'notes', Profile: 'profile' } as const;
 
 // Enable LayoutAnimation on Android for smooth layout transitions
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
