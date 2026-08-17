@@ -61,7 +61,7 @@ const id: typeof en = {
     recentVisits: "Kunjungan terbaru",
     logVisit: "+ Catat kunjungan",
     noRecentVisits: "Belum ada kunjungan",
-    upcomingActivities: "Kegiatan mendatang",
+    upcomingActivities: "Kegiatan hari ini",
     noUpcomingActivities: "Belum ada kegiatan yang dijadwalkan",
     viewSchedule: "Lihat Jadwal",
     today: "Hari ini",
@@ -72,6 +72,10 @@ const id: typeof en = {
     reportCardTitle: "Laporan Dinas",
     reportCardSubtitle: "Tinjau dan kirim",
     reportCardSubtitleOverdue: "Jangan lupa kirim laporan bulan lalu",
+    reportCardSubtitleFirstDay:
+      "Ini tanggal satu. Saatnya mengirim laporan Anda.",
+    reportCardSubtitleUnsent:
+      "Anda belum mengirim laporan untuk {{month}}.",
   },
   logStudy: {
     title: "Catat Pelajaran Alkitab",
@@ -140,6 +144,18 @@ const id: typeof en = {
     auxPioneerMonthsHint:
       "Pilih bulan yang kamu rencanakan untuk merintis ekstra.",
     reportLink: "Laporan Dinas",
+    plannedMinistryTitle: "Proyeksi jam",
+    plannedMinistryScheduleLink: "Jadwal",
+    plannedMinistryProjected: "bulan ini",
+    plannedMinistryLoggedPlanned: "{{logged}} jam tercatat · {{planned}} jam terjadwal",
+    plannedMinistryCaption: "Jam tercatat ditambah sisa waktu terjadwal",
+    plannedMinistryEmpty:
+      "Belum ada kegiatan terjadwal untuk {{month}}. Tambahkan kegiatan dengan waktu mulai dan selesai untuk memproyeksikan jam Anda.",
+    plannedMinistryNeedsTime: "Tambah waktu",
+    plannedMinistryIncomplete_one:
+      "{{count}} kegiatan memerlukan waktu selesai agar dapat dihitung.",
+    plannedMinistryIncomplete_other:
+      "{{count}} kegiatan memerlukan waktu selesai agar dapat dihitung.",
   },
   pioneerService: {
     title: "Pelaynan Perintis",

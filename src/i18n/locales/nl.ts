@@ -61,7 +61,7 @@ const nl: typeof en = {
     recentVisits: "Recente bezoeken",
     logVisit: "+ Bezoek loggen",
     noRecentVisits: "Nog geen bezoeken gelogd",
-    upcomingActivities: "Aankomende activiteiten",
+    upcomingActivities: "Activiteiten vandaag",
     noUpcomingActivities: "Binnenkort geen activiteiten gepland",
     viewSchedule: "Bekijk planning",
     today: "Vandaag",
@@ -73,6 +73,10 @@ const nl: typeof en = {
     reportCardSubtitle: "Bekijken en versturen",
     reportCardSubtitleOverdue:
       "Vergeet niet het rapport van vorige maand te versturen",
+    reportCardSubtitleFirstDay:
+      "Het is de eerste van de maand. Tijd om je rapport te versturen.",
+    reportCardSubtitleUnsent:
+      "Je hebt je rapport voor {{month}} nog niet verstuurd.",
   },
   logStudy: {
     title: "Bijbelstudie loggen",
@@ -141,6 +145,18 @@ const nl: typeof en = {
     auxPioneerMonthsHint:
       "Selecteer de maand(en) waarin je wilt hulppionieren.",
     reportLink: "Velddienstrapport",
+    plannedMinistryTitle: "Verwachte uren",
+    plannedMinistryScheduleLink: "Planning",
+    plannedMinistryProjected: "deze maand",
+    plannedMinistryLoggedPlanned: "{{logged}} uur gelogd · {{planned}} uur gepland",
+    plannedMinistryCaption: "Gelogde uren plus resterende geplande tijd",
+    plannedMinistryEmpty:
+      "Geen activiteiten gepland voor {{month}}. Voeg geplande activiteiten met begin- en eindtijd toe om je uren te voorspellen.",
+    plannedMinistryNeedsTime: "Tijd toevoegen",
+    plannedMinistryIncomplete_one:
+      "{{count}} activiteit heeft een eindtijd nodig voordat die meetelt.",
+    plannedMinistryIncomplete_other:
+      "{{count}} activiteiten hebben een eindtijd nodig voordat ze meetellen.",
   },
   pioneerService: {
     title: "Pionierdienst",

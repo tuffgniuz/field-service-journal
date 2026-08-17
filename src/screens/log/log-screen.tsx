@@ -22,8 +22,8 @@ import {
   studyContacts,
   type RecentVisit,
 } from '../../store/selectors';
-import { upcomingActivities, type ScheduledActivityOccurrence } from '../../utils/schedule';
-import { dateKey, todayKey } from '../../utils/dates';
+import { activitiesOnDate, type ScheduledActivityOccurrence } from '../../utils/schedule';
+import { dateKey, monthKeyOf, monthLabel, parseMonthKey, previousMonthKey, todayKey } from '../../utils/dates';
 import { hexToRgba } from '../../utils/color';
 import { INTL_LOCALE_TAGS } from '../../i18n/language';
 import type { TabScreenNavProp } from '../../navigation/types';
@@ -62,11 +62,20 @@ export function LogScreen({ navigation }: { navigation: TabScreenNavProp<'Log'> 
   );
 
   const reportOverdue = useMemo(() => isReportOverdue(state, now), [state, now]);
+  const dueReportMonth = useMemo(() => previousMonthKey(monthKeyOf(new Date(now))), [now]);
+  const dueReportMonthLabel = useMemo(() => monthLabel(parseMonthKey(dueReportMonth), locale), [dueReportMonth, locale]);
+  const isFirstOfMonth = useMemo(() => new Date(now).getDate() === 1, [now]);
+  const showReportCard = useMemo(() => {
+    return state.lastReportedMonth !== dueReportMonth;
+  }, [dueReportMonth, state.lastReportedMonth]);
   const todayHours = useMemo(() => liveTodayHours(state, now), [state, now]);
   const chart = useMemo(() => buildChartMonth(state, chartOffset, locale, now), [state, chartOffset, locale, now]);
   const recent = useMemo(() => recentVisits(state.contacts, 8), [state.contacts]);
-  const nextActivities = useMemo(
-    () => upcomingActivities(state.scheduledActivities, 2),
+  const todayActivities = useMemo<ScheduledActivityOccurrence[]>(
+    () => {
+      const today = todayKey();
+      return activitiesOnDate(state.scheduledActivities, today).map((activity) => ({ ...activity, occurrenceDate: today }));
+    },
     [state.scheduledActivities]
   );
 
@@ -88,36 +97,42 @@ export function LogScreen({ navigation }: { navigation: TabScreenNavProp<'Log'> 
         />
 
         <View style={styles.container}>
-          <Pressable
-            onPress={() => navigation.navigate('Report')}
-            style={[
-              styles.reportCard,
-              reportOverdue
-                ? { backgroundColor: hexToRgba(theme.gold, 0.14), borderColor: hexToRgba(theme.gold, 0.35) }
-                : { backgroundColor: theme.card, borderColor: theme.border },
-            ]}
-          >
-            <ReportIcon color={reportOverdue ? theme.gold : theme.secondaryText} size={18} />
-            <View style={styles.reportCardText}>
-              <Text style={[styles.reportCardTitle, { color: theme.text }]}>{t('log.reportCardTitle')}</Text>
-              <Text style={[styles.reportCardSubtitle, { color: theme.secondaryText }]}>
-                {t(reportOverdue ? 'log.reportCardSubtitleOverdue' : 'log.reportCardSubtitle')}
-              </Text>
-            </View>
-            <ChevronRightIcon color={theme.secondaryText} />
-          </Pressable>
+          {showReportCard ? (
+            <Pressable
+              onPress={() => navigation.navigate('Report')}
+              style={[
+                styles.reportCard,
+                reportOverdue
+                  ? { backgroundColor: hexToRgba(theme.gold, 0.14), borderColor: hexToRgba(theme.gold, 0.35) }
+                  : { backgroundColor: theme.card, borderColor: theme.border },
+              ]}
+            >
+              <ReportIcon color={reportOverdue ? theme.gold : theme.secondaryText} size={18} />
+              <View style={styles.reportCardText}>
+                <Text style={[styles.reportCardTitle, { color: theme.text }]}>{t('log.reportCardTitle')}</Text>
+                <Text style={[styles.reportCardSubtitle, { color: theme.secondaryText }]}>
+                  {t(isFirstOfMonth ? 'log.reportCardSubtitleFirstDay' : 'log.reportCardSubtitleUnsent', {
+                    month: dueReportMonthLabel,
+                  })}
+                </Text>
+              </View>
+              <ChevronRightIcon color={theme.secondaryText} />
+            </Pressable>
+          ) : null}
 
-          <UpcomingActivitiesCard
-            theme={theme}
-            locale={locale}
-            activities={nextActivities}
-            contacts={state.contacts}
-            uses24HourClock={state.uses24HourClock}
-            scheduledActivityHours={state.scheduledActivityHours}
-            onViewSchedule={() => navigation.navigate('Tabs', { screen: 'Schedule' })}
-            onCheckActivity={(activity, title) => setActivityHoursSheet({ activity, title })}
-            onUncheckActivity={(activity) => actions.unconfirmActivityHours(activity.id, activity.occurrenceDate)}
-          />
+          {todayActivities.length > 0 ? (
+            <UpcomingActivitiesCard
+              theme={theme}
+              locale={locale}
+              activities={todayActivities}
+              contacts={state.contacts}
+              uses24HourClock={state.uses24HourClock}
+              scheduledActivityHours={state.scheduledActivityHours}
+              onViewSchedule={() => navigation.navigate('Tabs', { screen: 'Schedule' })}
+              onCheckActivity={(activity, title) => setActivityHoursSheet({ activity, title })}
+              onUncheckActivity={(activity) => actions.unconfirmActivityHours(activity.id, activity.occurrenceDate)}
+            />
+          ) : null}
 
           <RecentVisitsCard
             theme={theme}

@@ -1,4 +1,4 @@
-import type { ActivityType, ScheduledActivity } from '../store/types';
+import type { ActivityType, AppState, ScheduledActivity } from '../store/types';
 import { dateKey, parseDateKey, todayKey } from './dates';
 
 export type ScheduledActivityOccurrence = ScheduledActivity & { occurrenceDate: string };
@@ -211,4 +211,103 @@ export function upcomingActivities(activities: ScheduledActivity[], limit: numbe
     .filter((a): a is ScheduledActivityOccurrence => Boolean(a))
     .sort((a, b) => a.occurrenceDate.localeCompare(b.occurrenceDate) || parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time))
     .slice(0, limit);
+}
+
+export type PlannedActivityOccurrence = ScheduledActivityOccurrence & {
+  durationHours: number | null;
+};
+
+export type PlannedActivityBreakdown = {
+  type: ActivityType;
+  hours: number;
+  count: number;
+};
+
+export interface MonthlyMinistryProjection {
+  monthKey: string;
+  loggedHours: number;
+  plannedHours: number;
+  projectedHours: number;
+  incompleteCount: number;
+  occurrenceCount: number;
+  upcoming: PlannedActivityOccurrence[];
+  breakdown: PlannedActivityBreakdown[];
+}
+
+function activityDurationHours(activity: ScheduledActivity): number | null {
+  if (!activity.time.trim() || !activity.endTime?.trim()) return null;
+  const start = parseTimeToMinutes(activity.time);
+  const end = parseTimeToMinutes(activity.endTime);
+  if (start === Number.MAX_SAFE_INTEGER || end === Number.MAX_SAFE_INTEGER || end <= start) return null;
+  return (end - start) / 60;
+}
+
+/**
+ * Forward-looking ministry hours for a calendar month, based on planned
+ * scheduled activities. Confirmed scheduled occurrences are skipped because
+ * their hours already live in `dailyLogs`.
+ */
+export function monthlyMinistryProjection(
+  state: Pick<AppState, 'dailyLogs' | 'scheduledActivities' | 'scheduledActivityHours'>,
+  month: Date = new Date(),
+  today: Date = new Date()
+): MonthlyMinistryProjection {
+  const monthStart = new Date(month.getFullYear(), month.getMonth(), 1);
+  const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 1);
+  const monthKey = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`;
+  const todayKeyStr = dateKey(today);
+
+  const loggedHours = Object.entries(state.dailyLogs).reduce(
+    (sum, [key, hours]) => (key.startsWith(monthKey) ? sum + hours : sum),
+    0
+  );
+  const breakdownByType = new Map<ActivityType, PlannedActivityBreakdown>();
+  const upcoming: PlannedActivityOccurrence[] = [];
+  let plannedHours = 0;
+  let incompleteCount = 0;
+  let occurrenceCount = 0;
+
+  for (const cursor = new Date(monthStart); cursor < monthEnd; cursor.setDate(cursor.getDate() + 1)) {
+    const occurrenceDate = dateKey(cursor);
+    const activities = activitiesOnDate(state.scheduledActivities, occurrenceDate);
+    occurrenceCount += activities.length;
+
+    for (const activity of activities) {
+      const durationHours = activityDurationHours(activity);
+      const occurrence = { ...activity, occurrenceDate, durationHours };
+      const isRemaining = occurrenceDate >= todayKeyStr;
+      const confirmed = `${activity.id}_${occurrenceDate}` in state.scheduledActivityHours;
+
+      if (isRemaining && !confirmed) {
+        upcoming.push(occurrence);
+
+        if (durationHours === null) {
+          incompleteCount += 1;
+        } else {
+          plannedHours += durationHours;
+          const existing = breakdownByType.get(activity.type) ?? { type: activity.type, hours: 0, count: 0 };
+          breakdownByType.set(activity.type, {
+            ...existing,
+            hours: existing.hours + durationHours,
+            count: existing.count + 1,
+          });
+        }
+      }
+    }
+  }
+
+  upcoming.sort(
+    (a, b) => a.occurrenceDate.localeCompare(b.occurrenceDate) || parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time)
+  );
+
+  return {
+    monthKey,
+    loggedHours,
+    plannedHours,
+    projectedHours: loggedHours + plannedHours,
+    incompleteCount,
+    occurrenceCount,
+    upcoming,
+    breakdown: Array.from(breakdownByType.values()).sort((a, b) => b.hours - a.hours),
+  };
 }

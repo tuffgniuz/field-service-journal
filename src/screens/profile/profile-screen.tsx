@@ -8,6 +8,7 @@ import { CameraIcon, SettingsIcon } from "../../components/data-display/icons";
 import { ShimmerText } from "../../components/data-display/shimmer-text";
 import { PillButton } from "../../components/actions/pill-button";
 import { YearHeatmap } from "./year-heatmap";
+import { PlannedMinistryCard } from "./planned-ministry-card";
 
 import { useRoleMeta } from "../../hooks/use-role-meta";
 import { INTL_LOCALE_TAGS } from "../../i18n/language";
@@ -16,6 +17,7 @@ import { fmtHours } from "../../utils/format";
 import { hexToRgba } from "../../utils/color";
 import { currentServiceYearLabel } from "../../utils/dates";
 import { deleteAvatarImage, pickAvatarImage } from "../../utils/avatar";
+import { monthlyMinistryProjection } from "../../utils/schedule";
 import {
   auxPioneerProgressFor,
   pioneerGoalFor,
@@ -44,6 +46,10 @@ export function ProfileScreen({
   const contributionWeeks = useMemo(
     () => serviceYearContributionWeeks(state, currentYearLabel, locale),
     [state, locale, currentYearLabel],
+  );
+  const ministryProjection = useMemo(
+    () => monthlyMinistryProjection(state),
+    [state],
   );
 
   const currentMonthName = useMemo(
@@ -347,6 +353,16 @@ export function ProfileScreen({
             />
           </View>
         </View>
+
+        <PlannedMinistryCard
+          theme={theme}
+          locale={locale}
+          monthName={currentMonthName}
+          projection={ministryProjection}
+          contacts={state.contacts}
+          uses24HourClock={state.uses24HourClock}
+          onViewSchedule={() => navigation.navigate("Schedule")}
+        />
 
         <View
           style={[

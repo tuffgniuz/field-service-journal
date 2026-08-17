@@ -59,7 +59,7 @@ const en = {
     recentVisits: "Recent visits",
     logVisit: "+ Log visit",
     noRecentVisits: "No visits logged yet",
-    upcomingActivities: "Upcoming activities",
+    upcomingActivities: "Today's activities",
     noUpcomingActivities: "No activities scheduled soon",
     viewSchedule: "View Schedule",
     today: "Today",
@@ -70,6 +70,10 @@ const en = {
     reportCardTitle: "Field service report",
     reportCardSubtitle: "Review and send",
     reportCardSubtitleOverdue: "Don't forget to send last month's report",
+    reportCardSubtitleFirstDay:
+      "It's the first of the month. Time to send your report.",
+    reportCardSubtitleUnsent:
+      "You haven't sent your report for {{month}} yet.",
   },
   logStudy: {
     title: "Log a Bible study",
@@ -137,6 +141,18 @@ const en = {
       "You'll be counted as an auxiliary pioneer every month until you turn this off.",
     auxPioneerMonthsHint: "Select the month(s) you plan to auxiliary pioneer.",
     reportLink: "Field Service Report",
+    plannedMinistryTitle: "Projected hours",
+    plannedMinistryScheduleLink: "Schedule",
+    plannedMinistryProjected: "this month",
+    plannedMinistryLoggedPlanned: "{{logged}}h logged · {{planned}}h planned",
+    plannedMinistryCaption: "Logged hours plus remaining scheduled time",
+    plannedMinistryEmpty:
+      "No activities planned for {{month}}. Add scheduled activities with start and end times to project your hours.",
+    plannedMinistryNeedsTime: "Add time",
+    plannedMinistryIncomplete_one:
+      "{{count}} activity needs an end time before it can count.",
+    plannedMinistryIncomplete_other:
+      "{{count}} activities need an end time before they can count.",
   },
   pioneerService: {
     title: "Pioneer Service",
