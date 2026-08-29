@@ -4,7 +4,7 @@
   "main": "index.ts",
   "packageManager": "pnpm@10.33.0",
   "dependencies": {
-    "@expo/metro-runtime": "~6.1.2",
+    "@expo/metro-runtime": "~57.0.13",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "8.4.4",
     "@react-navigation/bottom-tabs": "^7.18.14",
